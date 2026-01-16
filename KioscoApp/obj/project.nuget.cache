@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "Oav0c2LFN+Q=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Usuario\\OneDrive\\KioscoApp\\KioscoApp\\KioscoApp.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Usuario\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\7.0.1\\microsoft.extensions.logging.abstractions.7.0.1.nupkg.sha512",
+    "C:\\Users\\Usuario\\.nuget\\packages\\mysqlconnector\\2.3.7\\mysqlconnector.2.3.7.nupkg.sha512",
+    "C:\\Users\\Usuario\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
