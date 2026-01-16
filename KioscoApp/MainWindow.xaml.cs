@@ -9,6 +9,10 @@ using System.Windows.Input;
 using MySqlConnector;
 using Newtonsoft.Json.Linq;
 using System.Data;
+using Google.Cloud.Vision.V1;
+using Microsoft.Win32;
+using Google.Apis.CustomSearchAPI.v1;
+using Google.Apis.Services;
 
 namespace KioscoApp
 {
@@ -17,6 +21,11 @@ namespace KioscoApp
         string connStr = "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Gtacinco135;Port=3306;";
         ObservableCollection<Producto> carrito = new ObservableCollection<Producto>();
         decimal totalVenta = 0;
+        // Reemplaza con tu API key de Barcode Lookup
+        const string BarcodeLookupApiKey = "TU_API_KEY_AQUI";
+        // Reemplaza con tu API key de Google Custom Search y Search Engine ID
+        const string GoogleApiKey = "TU_GOOGLE_API_KEY";
+        const string SearchEngineId = "TU_SEARCH_ENGINE_ID";
 
         public MainWindow() {
             InitializeComponent();
@@ -179,18 +188,139 @@ namespace KioscoApp
             string barcode = txtCargaBarcode.Text.Trim();
             if (string.IsNullOrEmpty(barcode)) return;
 
-            lblCargaStatus.Text = "Buscando en API mundial...";
+            if (BarcodeLookupApiKey == "TU_API_KEY_AQUI") {
+                // Si no hay key válida, usar OpenFoodFacts directamente
+                lblCargaStatus.Text = "Buscando en OpenFoodFacts...";
+                await BuscarEnOpenFoodFacts(barcode);
+                return;
+            }
+
+            lblCargaStatus.Text = "Buscando en Barcode Lookup...";
             try {
                 using (HttpClient client = new HttpClient()) {
+                    client.Timeout = TimeSpan.FromSeconds(10); // Timeout de 10 segundos
+                    string url = $"https://api.barcodelookup.com/v3/products?barcode={barcode}&key={BarcodeLookupApiKey}";
+                    HttpResponseMessage responseMessage = await client.GetAsync(url);
+                    if (responseMessage.IsSuccessStatusCode) {
+                        string response = await responseMessage.Content.ReadAsStringAsync();
+                        var json = JObject.Parse(response);
+                        if (json["products"] != null && json["products"].HasValues) {
+                            var product = json["products"][0];
+                            string productName = product["product_name"]?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(productName)) {
+                                txtCargaNombre.Text = productName;
+                                lblCargaStatus.Text = "¡Encontrado en Barcode Lookup!";
+                                return;
+                            }
+                        }
+                        lblCargaStatus.Text = "No encontrado en Barcode Lookup.";
+                    } else if (responseMessage.StatusCode == System.Net.HttpStatusCode.Forbidden) {
+                        lblCargaStatus.Text = "API Key inválida, intentando con OpenFoodFacts...";
+                        await BuscarEnOpenFoodFacts(barcode);
+                        return;
+                    } else {
+                        lblCargaStatus.Text = $"Error en Barcode Lookup ({(int)responseMessage.StatusCode}), intentando OpenFoodFacts...";
+                        await BuscarEnOpenFoodFacts(barcode);
+                        return;
+                    }
+                }
+            } catch (Exception ex) {
+                lblCargaStatus.Text = $"Error de conexión con Barcode Lookup: {ex.Message}. Intentando OpenFoodFacts...";
+                await BuscarEnOpenFoodFacts(barcode);
+            }
+        }
+
+        private async Task BuscarEnOpenFoodFacts(string barcode) {
+            try {
+                using (HttpClient client = new HttpClient()) {
+                    client.Timeout = TimeSpan.FromSeconds(10); // Timeout de 10 segundos
                     string url = $"https://world.openfoodfacts.org/api/v0/product/{barcode}.json";
                     string response = await client.GetStringAsync(url);
                     var json = JObject.Parse(response);
                     if (json["status"]?.ToString() == "1" && json["product"] != null) {
                         txtCargaNombre.Text = json["product"]?["product_name"]?.ToString() ?? "";
-                        lblCargaStatus.Text = "¡Encontrado en API!";
+                        lblCargaStatus.Text = "¡Encontrado en OpenFoodFacts!";
+                    } else {
+                        if (GoogleApiKey != "TU_GOOGLE_API_KEY" && SearchEngineId != "TU_SEARCH_ENGINE_ID") {
+                            lblCargaStatus.Text = "No encontrado en OpenFoodFacts, intentando Google Search...";
+                            await BuscarEnGoogle(barcode);
+                        } else {
+                            lblCargaStatus.Text = "No encontrado. Configura Google Search para mejores resultados.";
+                        }
                     }
                 }
-            } catch { lblCargaStatus.Text = "Error de conexión con la API."; }
+            } catch {
+                if (GoogleApiKey != "TU_GOOGLE_API_KEY" && SearchEngineId != "TU_SEARCH_ENGINE_ID") {
+                    lblCargaStatus.Text = "Error de conexión con OpenFoodFacts. Intentando Google Search...";
+                    await BuscarEnGoogle(barcode);
+                } else {
+                    lblCargaStatus.Text = "Error de conexión. Configura Google Search para mejores resultados.";
+                }
+            }
+        }
+
+        private async Task BuscarEnGoogle(string barcode) {
+            try {
+                var service = new CustomSearchAPIService(new BaseClientService.Initializer
+                {
+                    ApiKey = GoogleApiKey
+                });
+
+                var request = service.Cse.List();
+                request.Cx = SearchEngineId;
+                request.Q = $"producto código de barras {barcode}";
+                request.Num = 1;
+
+                var result = await request.ExecuteAsync();
+                if (result.Items != null && result.Items.Count > 0) {
+                    string title = result.Items[0].Title;
+                    // Extraer nombre del título, asumiendo que es algo como "Producto XYZ - Marca"
+                    string productName = title.Split('-')[0].Trim();
+                    txtCargaNombre.Text = productName;
+                    lblCargaStatus.Text = "¡Encontrado en Google Search!";
+                } else {
+                    lblCargaStatus.Text = "No encontrado en Google Search.";
+                }
+            } catch (Exception ex) {
+                lblCargaStatus.Text = $"Error con Google Search: {ex.Message}";
+            }
+        }
+
+        private async void TxtCargaBarcode_KeyDown(object sender, KeyEventArgs e) {
+            if (e.Key == Key.Enter) {
+                e.Handled = true;
+                TxtCargaBarcode_LostFocus(sender, null);
+                txtCargaNombre.Focus();
+            }
+        }
+
+        private async void BtnGoogleLens_Click(object sender, RoutedEventArgs e) {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.Filter = "Image files (*.jpg, *.jpeg, *.png, *.bmp)|*.jpg;*.jpeg;*.png;*.bmp";
+            if (openFileDialog.ShowDialog() == true) {
+                string imagePath = openFileDialog.FileName;
+                lblCargaStatus.Text = "Procesando imagen con Google Lens...";
+                try {
+                    var client = ImageAnnotatorClient.Create();
+                    var image = Image.FromFile(imagePath);
+                    
+                    // Detectar texto (incluyendo posibles códigos de barras)
+                    var textAnnotations = await client.DetectTextAsync(image);
+                    if (textAnnotations != null && textAnnotations.Count > 0) {
+                        string detectedText = textAnnotations[0].Description;
+                        // Asumir que el primer texto es el nombre o código
+                        if (detectedText.Length < 20) { // Probablemente código de barras
+                            txtCargaBarcode.Text = detectedText.Trim();
+                        } else {
+                            txtCargaNombre.Text = detectedText.Trim();
+                        }
+                    }
+                    
+                    lblCargaStatus.Text = "¡Datos extraídos de la imagen!";
+                } catch (Exception ex) {
+                    lblCargaStatus.Text = $"Error con Google Lens: {ex.Message}";
+                }
+            }
         }
 
         private void BtnGuardar_Click(object sender, RoutedEventArgs e) {
@@ -322,7 +452,7 @@ namespace KioscoApp
                             });
                             CalcularTotal();
                             // Feedback visual
-                            MessageBox.Show($"✓ {nombre} agregado\n$ {precio.ToString("F2")}", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MostrarMensajeTemporal($"✓ {nombre} agregado");
                             return;
                         }
                     }
@@ -340,13 +470,13 @@ namespace KioscoApp
                             });
                             CalcularTotal();
                             // Feedback visual
-                            MessageBox.Show($"✓ {nombre} agregado\n$ {precio.ToString("F2")}", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                            MostrarMensajeTemporal($"✓ {nombre} agregado");
                             return;
                         }
                     }
                     
                     // No encontrado
-                    MessageBox.Show($"❌ '{input}' no encontrado en la base de datos.", "Producto No Registrado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MostrarMensajeTemporal($"❌ '{input}' no encontrado");
                 }
             } catch (Exception ex) { 
                 MessageBox.Show($"Error de conexión: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error); 
@@ -391,7 +521,7 @@ namespace KioscoApp
             if (lstSuggestions.SelectedItem is Producto p) {
                 carrito.Add(new Producto { Nombre = p.Nombre, Precio = p.Precio });
                 CalcularTotal();
-                MessageBox.Show($"✓ {p.Nombre} agregado\n$ {p.Precio.ToString("F2")}", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                MostrarMensajeTemporal($"✓ {p.Nombre} agregado");
                 txtBarcodeVenta.Clear();
                 lstSuggestions.Items.Clear();
                 lstSuggestions.Visibility = Visibility.Collapsed;
@@ -535,6 +665,13 @@ namespace KioscoApp
             } catch (Exception ex) {
                 MessageBox.Show($"Error al guardar la venta: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private async void MostrarMensajeTemporal(string mensaje) {
+            lblMensaje.Text = mensaje;
+            lblMensaje.Visibility = Visibility.Visible;
+            await Task.Delay(2000); // Esperar 2 segundos
+            lblMensaje.Visibility = Visibility.Collapsed;
         }
     }
 

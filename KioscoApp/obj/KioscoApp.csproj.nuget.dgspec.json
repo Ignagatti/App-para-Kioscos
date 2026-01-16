@@ -43,6 +43,14 @@
         "net8.0-windows7.0": {
           "targetAlias": "net8.0-windows7.0",
           "dependencies": {
+            "Google.Apis.CustomSearchAPI.v1": {
+              "target": "Package",
+              "version": "[1.68.0.3520, )"
+            },
+            "Google.Cloud.Vision.V1": {
+              "target": "Package",
+              "version": "[3.4.0, )"
+            },
             "MySqlConnector": {
               "target": "Package",
               "version": "[2.3.7, )"

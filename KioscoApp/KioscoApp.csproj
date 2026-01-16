@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Apis.CustomSearchAPI.v1" Version="1.68.0.3520" />
+    <PackageReference Include="Google.Cloud.Vision.V1" Version="3.4.0" />
     <PackageReference Include="MySqlConnector" Version="2.3.7" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>

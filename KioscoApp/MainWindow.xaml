@@ -105,6 +105,8 @@
                                                HorizontalAlignment="Center" Opacity="0.9"/>
                                     <TextBlock x:Name="lblTotal" Text="$ 0.00" FontSize="48" FontWeight="ExtraBold" 
                                                Foreground="White" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                    <TextBlock x:Name="lblMensaje" Text="" FontSize="14" FontWeight="Bold" 
+                                               Foreground="#C8E6C9" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed"/>
                                 </StackPanel>
                             </Border>
                             
@@ -143,7 +145,7 @@
                             <StackPanel>
                                 <TextBlock Text="Código de Barras" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8" FontSize="13"/>
                                 <TextBox x:Name="txtCargaBarcode" Height="40" Margin="0,0,0,18" LostFocus="TxtCargaBarcode_LostFocus" 
-                                         BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0" FontSize="13"/>
+                                         KeyDown="TxtCargaBarcode_KeyDown" BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0" FontSize="13"/>
                                 
                                 <TextBlock Text="Nombre del Producto" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8" FontSize="13"/>
                                 <TextBox x:Name="txtCargaNombre" Height="40" Margin="0,0,0,18" 
@@ -156,13 +158,16 @@
                                 <Button Content="💾 GUARDAR EN BASE DE DATOS" Click="BtnGuardar_Click" Height="50" 
                                         Background="#2E7D32" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand" Margin="0,0,0,15"/>
                                 
+                                <Button Content="📷 BUSCAR CON GOOGLE LENS" Click="BtnGoogleLens_Click" Height="50" 
+                                        Background="#DB4437" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand" Margin="0,0,0,15"/>
+                                
                                 <Border Background="#F5F5F5" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                                     <TextBlock x:Name="lblCargaStatus" Text="Estado: Esperando código..." 
                                               FontStyle="Italic" Foreground="#666" FontSize="12"/>
                                 </Border>
                                 
                                 <Border Background="#E3F2FD" CornerRadius="8" Padding="12">
-                                    <TextBlock Text="💡 Tip: Escanea el código de barras en el campo superior para buscar automáticamente el producto en la base de datos mundial" 
+                                    <TextBlock Text="💡 Tip: Ingresa el código de barras para buscar automáticamente. Prueba Barcode Lookup, OpenFoodFacts, Google Search o sube una foto con Google Lens. Solo agrega el precio y guarda." 
                                               TextWrapping="Wrap" Foreground="#1565C0" FontSize="11"/>
                                 </Border>
                             </StackPanel>
