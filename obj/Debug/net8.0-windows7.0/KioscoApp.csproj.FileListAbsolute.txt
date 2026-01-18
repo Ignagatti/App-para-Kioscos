@@ -84,3 +84,15 @@ C:\Users\kevin\OneDrive\Escritorio\App-Kioscos\App-para-Kioscos\KioscoApp\obj\De
 C:\Users\kevin\OneDrive\Escritorio\App-Kioscos\App-para-Kioscos\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp.pdb
 C:\Users\kevin\OneDrive\Escritorio\App-Kioscos\App-para-Kioscos\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp.genruntimeconfig.cache
 C:\Users\kevin\OneDrive\Escritorio\App-Kioscos\App-para-Kioscos\KioscoApp\obj\Debug\net8.0-windows7.0\ref\KioscoApp.dll
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp.csproj.AssemblyReference.cache
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp\MainWindow.baml
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\MainWindow.baml
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp\App.g.cs
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp\MainWindow.g.cs
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\MainWindow.g.cs
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\App.g.cs
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp_MarkupCompile.cache
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp_MarkupCompile.lref
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp.dll
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\refint\KioscoApp.dll
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0-windows7.0\KioscoApp.pdb
