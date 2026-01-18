@@ -226,16 +226,24 @@ namespace KioscoApp
         }
 
         private void MostrarControlesEfectivo(bool mostrar) {
+            // Si los controles aún no se han inicializado, salimos del método
+            if (lblPagaCon == null || txtPagaCon == null || borderVuelto == null) return;
+
             lblPagaCon.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
             txtPagaCon.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
             borderVuelto.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void CbMetodoPago_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) {
+            // Verificamos que el ComboBox y sus items no sean nulos
+            if (cbMetodoPago == null || cbMetodoPago.SelectedItem == null) return;
+
             string metodo = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content.ToString();
             bool esEfectivo = metodo == "Efectivo";
+            
             MostrarControlesEfectivo(esEfectivo);
-            if (esEfectivo) {
+            
+            if (esEfectivo && txtPagaCon != null) {
                 txtPagaCon.Focus();
             }
         }
@@ -285,55 +293,63 @@ namespace KioscoApp
 
         private void FinalizarVenta() {
             string metodo = ((cbMetodoPago.SelectedItem as ComboBoxItem)?.Content as string) ?? "Efectivo";
-            bool esEfectivo = metodo == "Efectivo";
             
-            // Para no efectivo, no requiere monto
-            if (!esEfectivo) {
-                // Confirmar venta sin monto
-                var result = MessageBox.Show($"¿Confirmar venta por {totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"))} con {metodo}?", 
-                                           "Confirmar Venta", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result != MessageBoxResult.Yes) return;
+            if (metodo == "Efectivo") {
+                // Validación básica de pago
+                if (!decimal.TryParse(txtPagaCon.Text, out decimal paga) || paga < totalVenta) {
+                    MessageBox.Show("El monto pagado es insuficiente.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
             }
-            
-            // Guardar venta en base de datos
-            try {
-                using (MySqlConnection conn = new MySqlConnection(connStr)) {
-                    conn.Open();
-                    
-                    // Crear registro de venta
-                    string sqlVenta = "INSERT INTO ventas (total, cantidad_items, metodo_pago) VALUES (@total, @cantidad, @metodo)";
-                    MySqlCommand cmdVenta = new MySqlCommand(sqlVenta, conn);
-                    cmdVenta.Parameters.AddWithValue("@total", totalVenta);
-                    cmdVenta.Parameters.AddWithValue("@cantidad", carrito.Count);
-                    cmdVenta.Parameters.AddWithValue("@metodo", metodo);
-                    cmdVenta.ExecuteNonQuery();
-                    
-                    // Obtener el ID de la venta insertada
-                    MySqlCommand cmdId = new MySqlCommand("SELECT LAST_INSERT_ID()", conn);
-                    object? result = cmdId.ExecuteScalar();
-                    long ventaId = result != null ? (long)result : 0;
-                    
-                    // Guardar detalles de cada producto
-                    foreach (var producto in carrito) {
-                        string sqlDetalle = "INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@venta_id, @nombre, @precio, @cantidad, @subtotal)";
-                        MySqlCommand cmdDetalle = new MySqlCommand(sqlDetalle, conn);
-                        cmdDetalle.Parameters.AddWithValue("@venta_id", ventaId);
-                        cmdDetalle.Parameters.AddWithValue("@nombre", producto.Nombre ?? "Sin nombre");
-                        cmdDetalle.Parameters.AddWithValue("@precio", producto.Precio);
-                        cmdDetalle.Parameters.AddWithValue("@cantidad", 1);
-                        cmdDetalle.Parameters.AddWithValue("@subtotal", producto.Precio);
-                        cmdDetalle.ExecuteNonQuery();
+
+            using (MySqlConnection conn = new MySqlConnection(connStr)) {
+                conn.Open();
+                // Iniciamos una transacción para asegurar la integridad de los datos
+                using (MySqlTransaction trans = conn.BeginTransaction()) {
+                    try {
+                        // 1. Insertar la Cabecera de la Venta
+                        string sqlVenta = "INSERT INTO ventas (total, cantidad_items, metodo_pago) VALUES (@total, @cantidad, @metodo)";
+                        MySqlCommand cmdVenta = new MySqlCommand(sqlVenta, conn, trans);
+                        cmdVenta.Parameters.AddWithValue("@total", totalVenta);
+                        cmdVenta.Parameters.AddWithValue("@cantidad", carrito.Count);
+                        cmdVenta.Parameters.AddWithValue("@metodo", metodo);
+                        cmdVenta.ExecuteNonQuery();
+
+                        long ventaId = cmdVenta.LastInsertedId;
+
+                        // 2. Insertar Detalles y Actualizar Stock
+                        foreach (var producto in carrito) {
+                            // Guardar detalle
+                            string sqlDetalle = "INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @nom, @pre, 1, @sub)";
+                            MySqlCommand cmdDetalle = new MySqlCommand(sqlDetalle, conn, trans);
+                            cmdDetalle.Parameters.AddWithValue("@id", ventaId);
+                            cmdDetalle.Parameters.AddWithValue("@nom", producto.Nombre);
+                            cmdDetalle.Parameters.AddWithValue("@pre", producto.Precio);
+                            cmdDetalle.Parameters.AddWithValue("@sub", producto.Precio);
+                            cmdDetalle.ExecuteNonQuery();
+
+                            // DESCONTAR STOCK (Solo si el producto tiene nombre registrado en la BD)
+                            string sqlStock = "UPDATE productos SET stock = stock - 1 WHERE nombre = @nom";
+                            MySqlCommand cmdStock = new MySqlCommand(sqlStock, conn, trans);
+                            cmdStock.Parameters.AddWithValue("@nom", producto.Nombre);
+                            cmdStock.ExecuteNonQuery();
+                        }
+
+                        trans.Commit(); // Si todo salió bien, guardamos cambios permanentemente
+                        
+                        MessageBox.Show("✓ Venta procesada y stock actualizado.", "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
+                        
+                        // Limpieza de interfaz
+                        carrito.Clear();
+                        CalcularTotal();
+                        gridCobro.Visibility = Visibility.Collapsed;
+                        txtBarcodeVenta.Focus();
+                        
+                    } catch (Exception ex) {
+                        trans.Rollback(); // Si hubo error, deshacemos todo para no corromper la BD
+                        MessageBox.Show($"Error crítico: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
-                
-                MessageBox.Show($"✓ ¡Venta Finalizada!\n\nTotal: {totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"))}\nMétodo: {metodo}\nProductos: {carrito.Count}", 
-                                "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
-                carrito.Clear(); 
-                CalcularTotal();
-                gridCobro.Visibility = Visibility.Collapsed;
-                txtBarcodeVenta.Focus();
-            } catch (Exception ex) {
-                MessageBox.Show($"Error al guardar la venta: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
