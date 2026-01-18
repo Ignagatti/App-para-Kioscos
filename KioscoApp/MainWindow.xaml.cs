@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using MySqlConnector;
 using Newtonsoft.Json.Linq;
@@ -216,9 +217,27 @@ namespace KioscoApp
         private void AbrirPanelCobro() {
             lblTotalCobro.Text = totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
             gridCobro.Visibility = Visibility.Visible;
+            cbMetodoPago.SelectedIndex = 0; // Efectivo por defecto
             txtPagaCon.Clear();
             lblVuelto.Text = "$ 0,00";
             txtPagaCon.Focus();
+            // Mostrar controles de efectivo por defecto
+            MostrarControlesEfectivo(true);
+        }
+
+        private void MostrarControlesEfectivo(bool mostrar) {
+            lblPagaCon.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
+            txtPagaCon.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
+            borderVuelto.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void CbMetodoPago_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) {
+            string metodo = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content.ToString();
+            bool esEfectivo = metodo == "Efectivo";
+            MostrarControlesEfectivo(esEfectivo);
+            if (esEfectivo) {
+                txtPagaCon.Focus();
+            }
         }
 
         private void TxtPagaCon_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) {
@@ -240,6 +259,15 @@ namespace KioscoApp
             if (e.Key == Key.Escape) {
                 e.Handled = true;
                 CancelarCobro();
+            } else if (e.Key == Key.F1) {
+                cbMetodoPago.SelectedIndex = 0; // Efectivo
+                e.Handled = true;
+            } else if (e.Key == Key.F2) {
+                cbMetodoPago.SelectedIndex = 3; // Transferencia
+                e.Handled = true;
+            } else if (e.Key == Key.F3) {
+                cbMetodoPago.SelectedIndex = 1; // Débito
+                e.Handled = true;
             }
         }
 
@@ -256,16 +284,28 @@ namespace KioscoApp
         private void BtnConfirmarVenta_Click(object sender, RoutedEventArgs e) => FinalizarVenta();
 
         private void FinalizarVenta() {
+            string metodo = ((cbMetodoPago.SelectedItem as ComboBoxItem)?.Content as string) ?? "Efectivo";
+            bool esEfectivo = metodo == "Efectivo";
+            
+            // Para no efectivo, no requiere monto
+            if (!esEfectivo) {
+                // Confirmar venta sin monto
+                var result = MessageBox.Show($"¿Confirmar venta por {totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"))} con {metodo}?", 
+                                           "Confirmar Venta", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result != MessageBoxResult.Yes) return;
+            }
+            
             // Guardar venta en base de datos
             try {
                 using (MySqlConnection conn = new MySqlConnection(connStr)) {
                     conn.Open();
                     
                     // Crear registro de venta
-                    string sqlVenta = "INSERT INTO ventas (total, cantidad_items) VALUES (@total, @cantidad)";
+                    string sqlVenta = "INSERT INTO ventas (total, cantidad_items, metodo_pago) VALUES (@total, @cantidad, @metodo)";
                     MySqlCommand cmdVenta = new MySqlCommand(sqlVenta, conn);
                     cmdVenta.Parameters.AddWithValue("@total", totalVenta);
                     cmdVenta.Parameters.AddWithValue("@cantidad", carrito.Count);
+                    cmdVenta.Parameters.AddWithValue("@metodo", metodo);
                     cmdVenta.ExecuteNonQuery();
                     
                     // Obtener el ID de la venta insertada
@@ -286,7 +326,7 @@ namespace KioscoApp
                     }
                 }
                 
-                MessageBox.Show($"✓ ¡Venta Finalizada!\n\nTotal: {totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"))}\nProductos: {carrito.Count}", 
+                MessageBox.Show($"✓ ¡Venta Finalizada!\n\nTotal: {totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"))}\nMétodo: {metodo}\nProductos: {carrito.Count}", 
                                 "Éxito", MessageBoxButton.OK, MessageBoxImage.Information);
                 carrito.Clear(); 
                 CalcularTotal();
@@ -339,14 +379,6 @@ namespace KioscoApp
             if (e.Key == Key.Enter) {
                 txtCargaNombre.Focus();
             }
-        }
-
-        private void BtnGoogleLens_Click(object sender, RoutedEventArgs e) {
-            // Abrir Google Lens o similar para escanear
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
-                FileName = "https://lens.google.com/",
-                UseShellExecute = true
-            });
         }
 
         private void DgInventario_CellEditEnding(object sender, System.Windows.Controls.DataGridCellEditEndingEventArgs e) {
