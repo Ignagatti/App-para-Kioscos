@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔫 Scanner Kiosco - Celular</title>
+    <script src="https://cdn.jsdelivr.net/npm/@jridgewell/source-map-js@1.0.2/dist/index.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/zxing-library.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        #video {
+            width: 100%;
+            border-radius: 15px;
+            background: #000;
+            display: block;
+            margin-bottom: 15px;
+            border: 3px solid #4CAF50;
+        }
+        
+        .status {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .status.error {
+            background: #E53935;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .status.scanning {
+            background: rgba(255,255,255,0.2);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .last-scan {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .last-scan label {
+            display: block;
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .barcode-value {
+            font-size: 24px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-start {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-start:hover {
+            background: #45a049;
+            transform: scale(1.02);
+        }
+        
+        .btn-stop {
+            background: #E53935;
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            background: #d32f2f;
+            transform: scale(1.02);
+        }
+        
+        .btn-stop:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+        
+        .info {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+        
+        .scanner-icon {
+            font-size: 32px;
+            animation: spin 2s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <span class="scanner-icon" id="scanIcon">📱</span>
+                <span>Scanner Kiosco</span>
+            </h1>
+            <p>Conectado a la PC</p>
+        </div>
+        
+        <video id="video" autoplay playsinline></video>
+        
+        <div class="status scanning" id="status">
+            ⏳ Escanea un código de barras...
+        </div>
+        
+        <div class="last-scan" id="lastScan" style="display:none;">
+            <label>Último escaneo:</label>
+            <div class="barcode-value" id="barcodeValue">---</div>
+        </div>
+        
+        <div class="buttons">
+            <button class="btn-start" id="startBtn" onclick="startScanning()">▶️ Iniciar</button>
+            <button class="btn-stop" id="stopBtn" onclick="stopScanning()" disabled>⏹️ Detener</button>
+        </div>
+        
+        <div class="info">
+            <strong>IP de la PC:</strong><br>
+            <input type="text" id="pcIp" value="192.168.1.100" style="width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: none; color: #333;">
+            <br>
+            <strong>Puerto:</strong><br>
+            <input type="text" id="pcPort" value="5000" style="width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: none; color: #333;">
+            <br>
+            <small style="margin-top: 10px; display: block;">Los códigos se enviarán automáticamente a la PC</small>
+        </div>
+    </div>
+
+    <script>
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        let isScanning = false;
+        let lastScannedCode = null;
+
+        async function startScanning() {
+            try {
+                document.getElementById('scanIcon').textContent = '🔄';
+                document.getElementById('status').textContent = '⏳ Inicializando cámara...';
+                document.getElementById('startBtn').disabled = true;
+                
+                isScanning = true;
+                await codeReader.decodeFromVideoDevice(undefined, 'video', async (result, err) => {
+                    if (result) {
+                        const code = result.getText();
+                        
+                        if (code !== lastScannedCode) {
+                            lastScannedCode = code;
+                            
+                            // Mostrar en pantalla
+                            document.getElementById('lastScan').style.display = 'block';
+                            document.getElementById('barcodeValue').textContent = code;
+                            document.getElementById('status').className = 'status success';
+                            document.getElementById('status').textContent = '✅ ¡Código leído!';
+                            document.getElementById('scanIcon').textContent = '✅';
+                            
+                            // Enviar a la PC
+                            await sendToPC(code);
+                            
+                            // Volver a escaneo
+                            setTimeout(() => {
+                                document.getElementById('status').className = 'status scanning';
+                                document.getElementById('status').textContent = '⏳ Escanea otro código...';
+                                document.getElementById('scanIcon').textContent = '📱';
+                            }, 1500);
+                        }
+                    }
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error(err);
+                    }
+                });
+                
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('status').className = 'status scanning';
+                document.getElementById('status').textContent = '⏳ Escanea un código de barras...';
+            } catch (err) {
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = '❌ Error: ' + err.message;
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        async function stopScanning() {
+            isScanning = false;
+            codeReader.reset();
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('status').className = 'status';
+            document.getElementById('status').textContent = '⏹️ Escáner detenido';
+            document.getElementById('scanIcon').textContent = '📱';
+        }
+
+        async function sendToPC(barcode) {
+            const pcIp = document.getElementById('pcIp').value;
+            const pcPort = document.getElementById('pcPort').value;
+            const url = `http://${pcIp}:${pcPort}/api/barcode`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ barcode: barcode })
+                });
+                
+                if (response.ok) {
+                    console.log('Código enviado:', barcode);
+                } else {
+                    console.warn('Error al enviar:', response.status);
+                }
+            } catch (err) {
+                console.error('Error de conexión:', err);
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').textContent = `⚠️ No se puede conectar a ${pcIp}:${pcPort}`;
+            }
+        }
+
+        // Iniciar automáticamente
+        window.addEventListener('load', () => {
+            setTimeout(startScanning, 500);
+        });
+    </script>
+</body>
+</html>
