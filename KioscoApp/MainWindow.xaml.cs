@@ -15,7 +15,6 @@ namespace KioscoApp
 {
     public partial class MainWindow : Window
     {
-        // CADENA DE CONEXIÓN
         string connStr = "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Gtacinco135;Port=3306;";
         ObservableCollection<Producto> carrito = new ObservableCollection<Producto>();
         decimal totalVenta = 0;
@@ -25,10 +24,9 @@ namespace KioscoApp
             InitializeComponent();
             dgCarrito.ItemsSource = carrito;
 
-            [cite_start]// CORRECCIÓN: Detectar cambio de pestaña para cargar el inventario automáticamente 
             MainTabs.SelectionChanged += (s, e) =>
             {
-                if (MainTabs.SelectedItem is TabItem ti && ti.Header.ToString().Contains("INVENTARIO"))
+                if (MainTabs.SelectedItem is TabItem ti && ti.Header != null && ti.Header.ToString()!.Contains("INVENTARIO"))
                 {
                     CargarInventario();
                 }
@@ -36,12 +34,8 @@ namespace KioscoApp
 
             Loaded += (s, e) =>
             {
-                try
-                {
-                    txtBarcodeVenta.Focus();
-                    TestDatabaseConnection();
-                }
-                catch { }
+                txtBarcodeVenta.Focus();
+                TestDatabaseConnection();
             };
         }
 
@@ -53,7 +47,6 @@ namespace KioscoApp
                 using (MySqlConnection conn = new MySqlConnection(connStr))
                 {
                     conn.Open();
-                    // Consulta con JOIN para traer el nombre de la categoría
                     string sql = @"SELECT p.id, p.codigo_barras, p.nombre, p.precio, p.stock, c.nombre as categoria_nombre 
                                    FROM productos p 
                                    LEFT JOIN categorias c ON p.categoria_id = c.id";
@@ -66,8 +59,8 @@ namespace KioscoApp
                             listaInventario.Add(new Producto
                             {
                                 Id = Convert.ToInt32(reader["id"]),
-                                CodigoBarras = reader["codigo_barras"].ToString(),
-                                Nombre = reader["nombre"].ToString(),
+                                CodigoBarras = reader["codigo_barras"]?.ToString() ?? "",
+                                Nombre = reader["nombre"]?.ToString() ?? "Sin nombre",
                                 Precio = Convert.ToDecimal(reader["precio"]),
                                 Stock = Convert.ToInt32(reader["stock"]),
                                 Categoria = reader["categoria_nombre"]?.ToString() ?? "General"
@@ -77,39 +70,22 @@ namespace KioscoApp
                 }
                 dgInventario.ItemsSource = listaInventario;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error al cargar inventario: " + ex.Message);
-            }
+            catch (Exception ex) { MessageBox.Show("Error al cargar inventario: " + ex.Message); }
         }
 
         private void TestDatabaseConnection()
         {
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(connStr))
-                {
-                    conn.Open();
-                    string checkDb = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'KioscoDB'";
-                    MySqlCommand cmd = new MySqlCommand(checkDb, conn);
-                    if (cmd.ExecuteScalar() == null)
-                    {
-                        MessageBox.Show("⚠️ La base de datos 'KioscoDB' no existe.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
-                }
+                using (MySqlConnection conn = new MySqlConnection(connStr)) { conn.Open(); }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"❌ Error de conexión: {ex.Message}", "Error de Conexión", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            catch (Exception ex) { MessageBox.Show($"Error de conexión: {ex.Message}"); }
         }
 
         private async void TxtCargaBarcode_LostFocus(object sender, RoutedEventArgs e)
         {
             string barcode = txtCargaBarcode.Text.Trim();
             if (string.IsNullOrEmpty(barcode)) return;
-
-            lblCargaStatus.Text = "Buscando en API...";
             try
             {
                 using (HttpClient client = new HttpClient())
@@ -120,11 +96,10 @@ namespace KioscoApp
                     if (json["status"]?.ToString() == "1")
                     {
                         txtCargaNombre.Text = json["product"]?["product_name"]?.ToString() ?? "";
-                        lblCargaStatus.Text = "¡Encontrado!";
                     }
                 }
             }
-            catch { lblCargaStatus.Text = "API no disponible."; }
+            catch { }
         }
 
         private void BtnGuardar_Click(object sender, RoutedEventArgs e)
@@ -132,12 +107,8 @@ namespace KioscoApp
             try
             {
                 if (string.IsNullOrWhiteSpace(txtCargaBarcode.Text) || string.IsNullOrWhiteSpace(txtCargaNombre.Text)) return;
-                
                 if (!decimal.TryParse(txtCargaPrecio.Text, out decimal precioValue)) return;
-
-                // CORRECCIÓN: Asegurar que el stock se guarde correctamente
-                int stockInicial = 0;
-                int.TryParse(txtCargaStock?.Text, out stockInicial);
+                int.TryParse(txtCargaStock.Text, out int stockValue);
 
                 using (MySqlConnection conn = new MySqlConnection(connStr))
                 {
@@ -147,12 +118,11 @@ namespace KioscoApp
                     cmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text.Trim());
                     cmd.Parameters.AddWithValue("@n", txtCargaNombre.Text.Trim());
                     cmd.Parameters.AddWithValue("@p", precioValue);
-                    cmd.Parameters.AddWithValue("@s", stockInicial);
+                    cmd.Parameters.AddWithValue("@s", stockValue);
                     cmd.ExecuteNonQuery();
                     
-                    MessageBox.Show("✓ Producto guardado correctamente.", "Éxito");
-                    txtCargaBarcode.Clear(); txtCargaNombre.Clear(); txtCargaPrecio.Clear();
-                    if(txtCargaStock != null) txtCargaStock.Clear();
+                    MessageBox.Show("✓ Producto guardado.");
+                    txtCargaBarcode.Clear(); txtCargaNombre.Clear(); txtCargaPrecio.Clear(); txtCargaStock.Text = "0";
                 }
             }
             catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
@@ -163,8 +133,6 @@ namespace KioscoApp
             if (e.Key == Key.Enter)
             {
                 e.Handled = true;
-
-                // CORRECCIÓN: Si hay sugerencias de búsqueda abiertas, seleccionar la primera con Enter
                 if (lstSuggestions.Visibility == Visibility.Visible && lstSuggestions.Items.Count > 0)
                 {
                     lstSuggestions.SelectedIndex = 0;
@@ -178,15 +146,8 @@ namespace KioscoApp
                 }
 
                 string barcode = txtBarcodeVenta.Text.Trim();
-                if (string.IsNullOrEmpty(barcode))
-                {
-                    if (carrito.Count > 0) AbrirPanelCobro();
-                }
-                else
-                {
-                    BuscarYAgregar(barcode);
-                    txtBarcodeVenta.Clear();
-                }
+                if (string.IsNullOrEmpty(barcode)) { if (carrito.Count > 0) AbrirPanelCobro(); }
+                else { BuscarYAgregar(barcode); txtBarcodeVenta.Clear(); }
             }
         }
 
@@ -203,11 +164,7 @@ namespace KioscoApp
                     {
                         if (reader.Read())
                         {
-                            AgregarAlCarrito(reader["nombre"].ToString(), Convert.ToDecimal(reader["precio"]));
-                        }
-                        else
-                        {
-                            MessageBox.Show("Producto no encontrado.");
+                            AgregarAlCarrito(reader["nombre"]?.ToString() ?? "Producto", Convert.ToDecimal(reader["precio"]));
                         }
                     }
                 }
@@ -242,7 +199,7 @@ namespace KioscoApp
 
         private void FinalizarVenta()
         {
-            string metodo = ((cbMetodoPago.SelectedItem as ComboBoxItem)?.Content as string) ?? "Efectivo";
+            string metodo = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Efectivo";
 
             using (MySqlConnection conn = new MySqlConnection(connStr))
             {
@@ -251,7 +208,6 @@ namespace KioscoApp
                 {
                     try
                     {
-                        // 1. Insertar Venta
                         MySqlCommand cmdVenta = new MySqlCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago) VALUES (@t, @c, @m)", conn, trans);
                         cmdVenta.Parameters.AddWithValue("@t", totalVenta);
                         cmdVenta.Parameters.AddWithValue("@c", carrito.Count);
@@ -259,7 +215,6 @@ namespace KioscoApp
                         cmdVenta.ExecuteNonQuery();
                         long ventaId = cmdVenta.LastInsertedId;
 
-                        // 2. Detalles y Stock
                         foreach (var p in carrito)
                         {
                             MySqlCommand cmdDet = new MySqlCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @p, 1, @p)", conn, trans);
@@ -272,7 +227,6 @@ namespace KioscoApp
                             cmdStock.Parameters.AddWithValue("@n", p.Nombre);
                             cmdStock.ExecuteNonQuery();
                         }
-
                         trans.Commit();
                         MessageBox.Show("Venta completada.");
                         carrito.Clear(); CalcularTotal();
@@ -287,7 +241,6 @@ namespace KioscoApp
         {
             string query = txtBarcodeVenta.Text.Trim();
             if (string.IsNullOrEmpty(query)) { lstSuggestions.Visibility = Visibility.Collapsed; return; }
-
             try
             {
                 using (MySqlConnection conn = new MySqlConnection(connStr))
@@ -301,7 +254,7 @@ namespace KioscoApp
                     {
                         while (reader.Read())
                         {
-                            suggestions.Add(new Producto { Nombre = reader["nombre"].ToString(), Precio = Convert.ToDecimal(reader["precio"]) });
+                            suggestions.Add(new Producto { Nombre = reader["nombre"]?.ToString() ?? "", Precio = Convert.ToDecimal(reader["precio"]) });
                         }
                     }
                     lstSuggestions.ItemsSource = suggestions;
@@ -311,7 +264,6 @@ namespace KioscoApp
             catch { }
         }
 
-        // Eventos de interfaz restantes
         private void LstSuggestions_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (lstSuggestions.SelectedItem is Producto p)
@@ -342,7 +294,6 @@ namespace KioscoApp
         private void BtnCancelCobro_Click(object sender, RoutedEventArgs e) => gridCobro.Visibility = Visibility.Collapsed;
         private void CbMetodoPago_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
         private void GridCobro_KeyDown(object sender, KeyEventArgs e) { }
-        private void MostrarControlesEfectivo(bool m) { }
         private void TxtCargaBarcode_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) txtCargaNombre.Focus(); }
         private void DgInventario_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e) { }
     }

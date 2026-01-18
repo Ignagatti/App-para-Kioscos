@@ -102,7 +102,7 @@
             <TabItem Header="CARGA DE PRODUCTOS" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
                 <ScrollViewer Background="#F5F5F5">
                     <StackPanel Margin="40" MaxWidth="600" HorizontalAlignment="Left">
-                        <Border Background="#1976D2" CornerRadius="10" Padding="20" Margin="0,0,0,30">
+                        <Border Background="#1976D2" CornerRadius="10" Padding="20" Margin="0,0,0 = 30">
                             <StackPanel>
                                 <TextBlock Text="📦 CARGAR INVENTARIO" FontSize="24" FontWeight="ExtraBold" Foreground="White"/>
                             </StackPanel>
@@ -111,10 +111,16 @@
                             <StackPanel>
                                 <TextBlock Text="Código de Barras" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaBarcode" Height="40" Margin="0,0,0,18" LostFocus="TxtCargaBarcode_LostFocus" KeyDown="TxtCargaBarcode_KeyDown"/>
+                                
                                 <TextBlock Text="Nombre del Producto" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaNombre" Height="40" Margin="0,0,0,18"/>
+                                
                                 <TextBlock Text="Precio de Venta ($ ARS)" FontWeight="Bold" Margin="0,0,0,8"/>
-                                <TextBox x:Name="txtCargaPrecio" Height="40" Margin="0,0,0,25"/>
+                                <TextBox x:Name="txtCargaPrecio" Height="40" Margin="0,0,0,18"/>
+
+                                <TextBlock Text="Stock Inicial" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <TextBox x:Name="txtCargaStock" Height="40" Margin="0,0,0,25" Text="0"/>
+                                
                                 <Button Content="💾 GUARDAR EN BASE DE DATOS" Click="BtnGuardar_Click" Height="50" Background="#2E7D32" Foreground="White" FontWeight="Bold"/>
                                 <TextBlock x:Name="lblCargaStatus" Text="Estado: Esperando..." Margin="0,15,0,0" FontStyle="Italic" Foreground="#666"/>
                             </StackPanel>
@@ -177,11 +183,11 @@
             <Border Background="White" Width="400" CornerRadius="16" VerticalAlignment="Center" Padding="30">
                 <StackPanel>
                     <TextBlock Text="➕ PRODUCTO MANUAL" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <TextBox x:Name="txtManualNombre" Height="40" Margin="0,0,0,15" BorderBrush="#BDBDBD" Padding="10,5"/>
-                    <TextBox x:Name="txtManualPrecio" Height="40" Margin="0,0,0,25" BorderBrush="#BDBDBD" Padding="10,5"/>
+                    <TextBox x:Name="txtManualNombre" Height="40" Margin="0,0,0,15" BorderBrush="#BDBDBD" Padding="10,5" Tag="Descripción"/>
+                    <TextBox x:Name="txtManualPrecio" Height="40" Margin="0,0,0,25" BorderBrush="#BDBDBD" Padding="10,5" Tag="Precio"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Cancelar" Click="BtnManualCancel_Click" Margin="0,0,10,0"/>
-                        <Button Content="Agregar" Click="BtnManualConfirm_Click" Background="#4CAF50" Foreground="White"/>
+                        <Button Content="Cancelar" Click="BtnManualCancel_Click" Margin="0,0,10,0" Width="80"/>
+                        <Button Content="Agregar" Click="BtnManualConfirm_Click" Background="#4CAF50" Foreground="White" Width="80"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -190,16 +196,17 @@
         <Grid x:Name="gridCobro" Visibility="Collapsed" Background="#CC000000" KeyDown="GridCobro_KeyDown">
             <Border Background="White" Width="420" CornerRadius="16" VerticalAlignment="Center" Padding="35">
                 <StackPanel>
-                    <TextBlock Text="💳 COBRAR VENTA" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,25"/>
+                    <TextBlock Text="💳 COBRAR VENTA" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0 = 25"/>
                     <Border Background="#2E7D32" CornerRadius="10" Padding="15" Margin="0,0,0,20">
                         <TextBlock x:Name="lblTotalCobro" FontSize="40" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
                     </Border>
                     <ComboBox x:Name="cbMetodoPago" Height="40" Margin="0,0,0,15" SelectedIndex="0" SelectionChanged="CbMetodoPago_SelectionChanged">
                         <ComboBoxItem Content="Efectivo"/>
                         <ComboBoxItem Content="Tarjeta de Débito"/>
+                        <ComboBoxItem Content="Tarjeta de Crédito"/>
                         <ComboBoxItem Content="Transferencia"/>
                     </ComboBox>
-                    <TextBlock x:Name="lblPagaCon" Text="Paga con ($)"/>
+                    <TextBlock x:Name="lblPagaCon" Text="Paga con ($)" Margin="0,0,0,5"/>
                     <TextBox x:Name="txtPagaCon" FontSize="28" Height="55" Margin="0,0,0,20" TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"/>
                     <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="36" Foreground="#D32F2F" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
                     <Button Content="✓ FINALIZAR" Click="BtnConfirmarVenta_Click" Height="50" Background="#4CAF50" Foreground="White"/>
