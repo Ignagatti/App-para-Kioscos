@@ -1,0 +1,300 @@
+﻿<Window x:Class="KioscoApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Kiosco Pro - Sistema de Ventas" Height="750" Width="1200" Background="#F5F5F5" 
+        WindowStartupLocation="CenterScreen" MinHeight="600" MinWidth="900">
+    <Window.Resources>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1976D2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <TabControl x:Name="MainTabs" Padding="0" Margin="0">
+            <!-- PESTAÑA DE VENTAS -->
+            <TabItem Header="VENTA (F1)" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
+                <Grid Margin="20" Background="#FFFFFF">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="380"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                        <!-- Título y Scanner -->
+                        <Border Background="#2196F3" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                            <StackPanel>
+                                <TextBlock Text="🔍 ESCANEAR PRODUCTOS" FontWeight="Bold" Foreground="White" FontSize="14" Margin="0,0,0,8"/>
+                                <TextBlock Text="Coloca el cursor en el campo y escanea el código de barras" Foreground="#E3F2FD" FontSize="11"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <TextBox x:Name="txtBarcodeVenta" Height="50" FontSize="18" VerticalContentAlignment="Center" 
+                                 KeyDown="TxtBarcodeVenta_KeyDown" TextChanged="TxtBarcodeVenta_TextChanged" BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0"
+                                 Background="White" Foreground="#333"/>
+                        
+                        <ListBox x:Name="lstSuggestions" Height="150" Visibility="Collapsed" Margin="0,5,0,0" 
+                                 SelectionChanged="LstSuggestions_SelectionChanged" Background="White" BorderBrush="#BDBDBD" BorderThickness="1">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Nombre}" FontWeight="Bold" Margin="0,0,10,0"/>
+                                        <TextBlock Text="{Binding Precio, StringFormat='$ {0:F2}'}" Foreground="#2196F3"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        
+                        <!-- Lista de productos -->
+                        <TextBlock Text="PRODUCTOS EN CARRITO" FontWeight="Bold" Foreground="#333" FontSize="14" Margin="0,20,0,10"/>
+                        <Border Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,0,15">
+                            <DataGrid x:Name="dgCarrito" Height="350" AutoGenerateColumns="False" CanUserAddRows="False" 
+                                      GridLinesVisibility="Horizontal" RowHeight="40" FontSize="13" Background="White">
+                                <DataGrid.Resources>
+                                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#E3F2FD"/>
+                                </DataGrid.Resources>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" 
+                                                       HeaderStyle="{StaticResource {x:Type DataGridColumnHeader}}"/>
+                                    <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
+                                    <DataGridTemplateColumn Width="80">
+                                        <DataGridTemplateColumn.HeaderTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="Acción" HorizontalAlignment="Center"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.HeaderTemplate>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Content="✕" Click="BtnQuitar_Click" Background="#E53935" 
+                                                        Foreground="White" Cursor="Hand" Padding="5" FontSize="14" FontWeight="Bold"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                        
+                        <Button Content="➕ AGREGAR PRODUCTO MANUAL" Click="BtnManualOpen_Click" Height="45" 
+                                Background="#7B1FA2" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                    </StackPanel>
+
+                    <!-- Panel Lateral - Total -->
+                    <Border Grid.Column="1" Background="White" CornerRadius="12" Padding="25" 
+                            BorderBrush="#E0E0E0" BorderThickness="1" VerticalAlignment="Stretch">
+                        <StackPanel VerticalAlignment="Bottom">
+                            <Border Background="#2E7D32" CornerRadius="10" Padding="15" Margin="0,0,0,20">
+                                <StackPanel>
+                                    <TextBlock Text="TOTAL A PAGAR" FontSize="13" Foreground="#C8E6C9" 
+                                               HorizontalAlignment="Center" Opacity="0.9"/>
+                                    <TextBlock x:Name="lblTotal" Text="$ 0.00" FontSize="48" FontWeight="ExtraBold" 
+                                               Foreground="White" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                    <TextBlock x:Name="lblMensaje" Text="" FontSize="14" FontWeight="Bold" 
+                                               Foreground="#C8E6C9" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <Border Background="#F5F5F5" CornerRadius="8" Padding="15" Margin="0,0,0,20">
+                                <StackPanel>
+                                    <TextBlock Text="INFORMACIÓN" FontWeight="Bold" Foreground="#333" Margin="0,0,0,10" FontSize="12"/>
+                                    <TextBlock Text="• Escanea códigos para agregar" Foreground="#666" FontSize="11" Margin="0,3"/>
+                                    <TextBlock Text="• ENTER vacío para cobrar" Foreground="#666" FontSize="11" Margin="0,3"/>
+                                    <TextBlock Text="• Doble ENTER para finalizar" Foreground="#666" FontSize="11" Margin="0,3"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <TextBlock Text="Articulos: " FontWeight="Bold" Foreground="#555" Margin="0,5"/>
+                            <TextBlock x:Name="lblItemCount" Text="0" FontSize="20" Foreground="#2196F3" FontWeight="Bold" Margin="0,0,0,15"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- PESTAÑA DE CARGA -->
+            <TabItem Header="CARGA DE PRODUCTOS" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
+                <ScrollViewer Background="#F5F5F5">
+                    <StackPanel Margin="40" MaxWidth="600" HorizontalAlignment="Left">
+                        <!-- Encabezado -->
+                        <Border Background="#1976D2" CornerRadius="10" Padding="20" Margin="0,0,0,30">
+                            <StackPanel>
+                                <TextBlock Text="📦 CARGAR INVENTARIO" FontSize="24" FontWeight="ExtraBold" 
+                                           Foreground="White" Margin="0,0,0,5"/>
+                                <TextBlock Text="Registra nuevos productos en el sistema" FontSize="12" 
+                                           Foreground="#BBDEFB"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Formulario -->
+                        <Border Background="White" CornerRadius="10" Padding="25" BorderBrush="#E0E0E0" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Código de Barras" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8" FontSize="13"/>
+                                <TextBox x:Name="txtCargaBarcode" Height="40" Margin="0,0,0,18" LostFocus="TxtCargaBarcode_LostFocus" 
+                                         KeyDown="TxtCargaBarcode_KeyDown" BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0" FontSize="13"/>
+                                
+                                <TextBlock Text="Nombre del Producto" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8" FontSize="13"/>
+                                <TextBox x:Name="txtCargaNombre" Height="40" Margin="0,0,0,18" 
+                                         BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0" FontSize="13"/>
+                                
+                                <TextBlock Text="Precio de Venta ($ ARS)" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8" FontSize="13"/>
+                                <TextBox x:Name="txtCargaPrecio" Height="40" Margin="0,0,0,25" 
+                                         BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0" FontSize="13"/>
+                                
+                                <Button Content="💾 GUARDAR EN BASE DE DATOS" Click="BtnGuardar_Click" Height="50" 
+                                        Background="#2E7D32" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand" Margin="0,0,0,15"/>
+                                
+                                <Border Background="#F5F5F5" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                                    <TextBlock x:Name="lblCargaStatus" Text="Estado: Esperando código..." 
+                                              FontStyle="Italic" Foreground="#666" FontSize="12"/>
+                                </Border>
+                                
+                                <Border Background="#E3F2FD" CornerRadius="8" Padding="12">
+                                    <TextBlock Text="💡 Tip: Ingresa el código de barras para buscar automáticamente. Prueba Barcode Lookup, OpenFoodFacts, Google Search o sube una foto con Google Lens. Solo agrega el precio y guarda." 
+                                              TextWrapping="Wrap" Foreground="#1565C0" FontSize="11"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- PESTAÑA DE INVENTARIO -->
+            <TabItem Header="INVENTARIO" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
+                <Grid Margin="20" Background="#F5F5F5">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Encabezado -->
+                    <Border Background="#FF9800" CornerRadius="10" Padding="20" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="📋 GESTIÓN DE INVENTARIO" FontSize="24" FontWeight="ExtraBold" 
+                                       Foreground="White" Margin="0,0,0,5"/>
+                            <TextBlock Text="Lista completa de productos ordenados por categoría" FontSize="12" 
+                                       Foreground="#FFF3E0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Lista de productos -->
+                    <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="20" BorderBrush="#E0E0E0" BorderThickness="1">
+                        <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" CanUserAddRows="False" 
+                                  GridLinesVisibility="Horizontal" RowHeight="40" FontSize="13" Background="White"
+                                  CellEditEnding="DgInventario_CellEditEnding">
+                            <DataGrid.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FFF3E0"/>
+                            </DataGrid.Resources>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="120" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="150" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
+                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock}" Width="80"/>
+                            </DataGrid.Columns>
+                            <DataGrid.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.HeaderTemplate>
+                                        <DataTemplate>
+                                            <TextBlock FontWeight="Bold" FontSize="14" Foreground="#FF9800" 
+                                                       Text="{Binding Name}" Margin="0,10,0,5"/>
+                                        </DataTemplate>
+                                    </GroupStyle.HeaderTemplate>
+                                </GroupStyle>
+                            </DataGrid.GroupStyle>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- MODAL PRODUCTO MANUAL -->
+        <Grid x:Name="gridManual" Visibility="Collapsed" Background="#CC000000">
+            <Border Background="White" Width="400" CornerRadius="16" VerticalAlignment="Center">
+                <StackPanel Margin="30">
+                    <TextBlock Text="➕ PRODUCTO MANUAL" FontSize="20" FontWeight="ExtraBold" 
+                               Foreground="#333" Margin="0,0,0,5"/>
+                    <TextBlock Text="Sin código de barras (Queso, Pan, etc.)" FontSize="11" 
+                               Foreground="#999" Margin="0,0,0,20"/>
+                    
+                    <TextBlock Text="Descripción" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8"/>
+                    <TextBox x:Name="txtManualNombre" Height="40" Margin="0,0,0,15" 
+                             BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0" FontSize="13"/>
+                    
+                    <TextBlock Text="Precio ($)" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8"/>
+                    <TextBox x:Name="txtManualPrecio" Height="40" Margin="0,0,0,25" 
+                             BorderBrush="#BDBDBD" BorderThickness="1" Padding="12,0" FontSize="13"/>
+                    
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,0">
+                        <Button Content="Cancelar" Click="BtnManualCancel_Click" Width="110" 
+                                Background="#BDBDBD" Foreground="White" Margin="0,0,10,0" Height="40"/>
+                        <Button Content="Agregar" Click="BtnManualConfirm_Click" Width="110" 
+                                Background="#4CAF50" Foreground="White" Height="40"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- MODAL COBRO -->
+        <Grid x:Name="gridCobro" Visibility="Collapsed" Background="#CC000000" KeyDown="GridCobro_KeyDown">
+            <Border Background="White" Width="420" CornerRadius="16" VerticalAlignment="Center">
+                <StackPanel Margin="35">
+                    <TextBlock Text="💳 COBRAR VENTA" FontSize="22" FontWeight="ExtraBold" 
+                            HorizontalAlignment="Center" Margin="0,0,0,5" Foreground="#333"/>
+                    <TextBlock Text="Ingresa el monto recibido" FontSize="11" HorizontalAlignment="Center" 
+                            Margin="0,0,0,25" Foreground="#999"/>
+                    
+                    <Border Background="#2E7D32" CornerRadius="10" Padding="15" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="TOTAL" FontSize="12" Foreground="#C8E6C9" HorizontalAlignment="Center" Opacity="0.9"/>
+                            <TextBlock x:Name="lblTotalCobro" FontSize="40" FontWeight="ExtraBold" 
+                                    Foreground="White" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <TextBlock Text="Paga con ($)" FontWeight="Bold" Foreground="#333" Margin="0,0,0,8" FontSize="13"/>
+                    <TextBox x:Name="txtPagaCon" FontSize="28" Height="55" Margin="0,0,0,15" 
+                            TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"
+                            BorderBrush="#2196F3" BorderThickness="2" Padding="12,5" TextAlignment="Right" FontWeight="Bold"/>
+
+                    <TextBlock Text="MÉTODO DE PAGO" FontWeight="Bold" Foreground="#333" Margin="0,5,0,8" FontSize="13"/>
+                    <ComboBox x:Name="cmbMetodoPago" Height="45" Margin="0,0,0,15" FontSize="16" 
+                            VerticalContentAlignment="Center" SelectedIndex="0" Cursor="Hand">
+                        <ComboBoxItem Content="Efectivo"/>
+                        <ComboBoxItem Content="Débito"/>
+                        <ComboBoxItem Content="Transferencia"/>
+                    </ComboBox>
+                    
+                    <Border Background="#F5F5F5" CornerRadius="10" Padding="15" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="CAMBIO" FontSize="11" Foreground="#666" HorizontalAlignment="Center" Opacity="0.8"/>
+                            <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="36" Foreground="#D32F2F" 
+                                    FontWeight="ExtraBold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <Button Content="✓ FINALIZAR (ENTER)" Click="BtnConfirmarVenta_Click" Margin="0,0,0,10" 
+                            Height="50" Background="#4CAF50" Foreground="White" FontWeight="Bold" FontSize="14"/>
+                    <Button Content="← VOLVER ATRÁS (ESC)" Click="BtnCancelCobro_Click" 
+                            Height="45" Background="#E53935" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
+
