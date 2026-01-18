@@ -23,16 +23,49 @@ namespace KioscoApp
             InitializeComponent();
             dgCarrito.ItemsSource = carrito;
             
-            // Enfocar en el campo de escaneo al iniciar
+            [cite_start]// CARGAR ESTO: Detectar cambio de pestaña para refrescar el inventario [cite: 54]
+            MainTabs.SelectionChanged += (s, e) => {
+                if (MainTabs.SelectedItem is TabItem ti && ti.Header.ToString() == "INVENTARIO") {
+                    CargarInventario(); // Llama al método que ya tienes escrito
+                }
+            };
+
             Loaded += (s, e) => {
                 try {
                     txtBarcodeVenta.Focus();
-                    // Probar conexión a la base de datos
                     TestDatabaseConnection();
                 } catch { }
             };
         }
-
+        private void CargarInventario() {
+    try {
+        ObservableCollection<Producto> listaInventario = new ObservableCollection<Producto>();
+        using (MySqlConnection conn = new MySqlConnection(connStr)) {
+            conn.Open();
+            // Consulta con JOIN para traer la categoría
+            string sql = @"SELECT p.id, p.codigo_barras, p.nombre, p.precio, p.stock, c.nombre as categoria_nombre 
+                           FROM productos p 
+                           LEFT JOIN categorias c ON p.categoria_id = c.id";
+            
+            MySqlCommand cmd = new MySqlCommand(sql, conn);
+            using (var reader = cmd.ExecuteReader()) {
+                while (reader.Read()) {
+                    listaInventario.Add(new Producto {
+                        Id = Convert.ToInt32(reader["id"]),
+                        CodigoBarras = reader["codigo_barras"].ToString(),
+                        Nombre = reader["nombre"].ToString(),
+                        Precio = Convert.ToDecimal(reader["precio"]),
+                        Stock = Convert.ToInt32(reader["stock"]),
+                        Categoria = reader["categoria_nombre"]?.ToString() ?? "General"
+                    });
+                }
+            }
+        }
+        dgInventario.ItemsSource = listaInventario;
+    } catch (Exception ex) {
+        MessageBox.Show("Error al cargar inventario: " + ex.Message);
+    }
+}
         private void TestDatabaseConnection() {
             try {
                 using (MySqlConnection conn = new MySqlConnection(connStr)) {
@@ -106,13 +139,14 @@ namespace KioscoApp
                     conn.Open();
                     
                     // Si el código existe, actualiza; si no, inserta
-                    string sql = "INSERT INTO productos (codigo_barras, nombre, precio) VALUES (@c, @n, @p) ON DUPLICATE KEY UPDATE nombre=@n, precio=@p";
+                    // Modifica la consulta para incluir el stock
+                    string sql = "INSERT INTO productos (codigo_barras, nombre, precio, stock) VALUES (@c, @n, @p, @s) ON DUPLICATE KEY UPDATE nombre=@n, precio=@p, stock=stock+@s";
                     MySqlCommand cmd = new MySqlCommand(sql, conn);
                     cmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text.Trim());
                     cmd.Parameters.AddWithValue("@n", txtCargaNombre.Text.Trim());
                     cmd.Parameters.AddWithValue("@p", precioValue);
-                    cmd.ExecuteNonQuery();
-                    
+                    cmd.Parameters.AddWithValue("@s", int.Parse(txtCargaStock.Text)); // Agrega el stock inicial
+                                        
                     // Limpiar formulario
                     string codigoGuardado = txtCargaBarcode.Text.Trim();
                     string nombreGuardado = txtCargaNombre.Text.Trim();
