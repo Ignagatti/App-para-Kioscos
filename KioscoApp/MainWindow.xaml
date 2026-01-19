@@ -132,7 +132,10 @@
             <TabItem Header="INVENTARIO" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <RowDefinition Height="Auto"/> <RowDefinition Height="*"/>    </Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
                     <Border Background="#FF9800" CornerRadius="10" Padding="20" Margin="0,0,0,20">
                         <StackPanel>
@@ -143,21 +146,15 @@
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,15">
                         <TextBlock Text="🔍" VerticalAlignment="Center" FontSize="20" Margin="5,0,10,0"/>
-                        <TextBox x:Name="txtBuscarInventario" 
-                                Width="350" 
-                                Height="35" 
-                                FontSize="14" 
-                                VerticalContentAlignment="Center"
-                                Padding="5"
-                                TextChanged="TxtBuscarInventario_TextChanged" 
-                                ToolTip="Escribí para buscar por nombre o código..."/>
+                        <TextBox x:Name="txtBuscarInventario" Width="350" Height="35" FontSize="14" VerticalContentAlignment="Center"
+                                 Padding="5" TextChanged="TxtBuscarInventario_TextChanged" ToolTip="Busca por nombre o código..."/>
                     </StackPanel>
 
                     <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="20" BorderBrush="#E0E0E0" BorderThickness="1">
                         <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" CanUserAddRows="False" 
-                                GridLinesVisibility="Horizontal" RowHeight="45" FontSize="14" 
-                                Background="White" BorderThickness="0" AlternatingRowBackground="#F9F9F9"
-                                CellEditEnding="DgInventario_CellEditEnding">
+                                  GridLinesVisibility="Horizontal" RowHeight="45" FontSize="14" 
+                                  Background="White" BorderThickness="0" AlternatingRowBackground="#F9F9F9"
+                                  CellEditEnding="DgInventario_CellEditEnding">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="130" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" IsReadOnly="True"/>
@@ -188,6 +185,52 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="CAJA" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <UniformGrid Rows="1" Columns="3" Margin="0,0,0,20">
+                        <Border Background="#4CAF50" CornerRadius="10" Padding="15" Margin="5">
+                            <StackPanel>
+                                <TextBlock Text="EFECTIVO EN CAJA" Foreground="White" FontSize="12" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="lblCajaEfectivo" Text="$ 0,00" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#2196F3" CornerRadius="10" Padding="15" Margin="5">
+                            <StackPanel>
+                                <TextBlock Text="TRANSF / DÉBITO" Foreground="White" FontSize="12" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="lblCajaOtros" Text="$ 0,00" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#607D8B" CornerRadius="10" Padding="15" Margin="5">
+                            <StackPanel>
+                                <TextBlock Text="TOTAL GENERAL" Foreground="White" FontSize="12" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="lblCajaTotal" Text="$ 0,00" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <TextBlock Grid.Row="1" Text="HISTORIAL DE VENTAS" FontWeight="Bold" Margin="5,0,0,10" FontSize="14"/>
+
+                    <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="15" BorderBrush="#E0E0E0" BorderThickness="1">
+                        <DataGrid x:Name="dgHistorialVentas" AutoGenerateColumns="False" CanUserAddRows="False" GridLinesVisibility="Horizontal" RowHeight="35">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Fecha, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
+                                <DataGridTextColumn Header="Método" Binding="{Binding MetodoPago}" Width="120"/>
+                                <DataGridTextColumn Header="Items" Binding="{Binding CantidadItems}" Width="80"/>
+                                <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ #,##0.00'}" Width="120" FontWeight="Bold"/>
+                                <DataGridTextColumn Header="Detalle" Binding="{Binding DetalleTexto}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
         <Grid x:Name="gridManual" Visibility="Collapsed" Background="#CC000000">
             <Border Background="White" Width="400" CornerRadius="16" VerticalAlignment="Center" Padding="30">
                 <StackPanel>
@@ -201,8 +244,7 @@
                 </StackPanel>
             </Border>
         </Grid>
-        
-        </TabControl>
+
         <Grid x:Name="gridCobro" Visibility="Collapsed" Background="#CC000000" KeyDown="GridCobro_KeyDown">
             <Border Background="White" Width="420" CornerRadius="16" VerticalAlignment="Center" Padding="35">
                 <StackPanel>
@@ -218,7 +260,7 @@
                     </ComboBox>
                     <TextBlock x:Name="lblPagaCon" Text="Paga con ($)" Margin="0,0,0,5"/>
                     <TextBox x:Name="txtPagaCon" FontSize="28" Height="55" Margin="0,0,0,20" TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"/>
-                    <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="36" Foreground="#D32F2F" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="36" Foreground="#D32F2F" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,20"/>
                     <Button Content="✓ FINALIZAR" Click="BtnConfirmarVenta_Click" Height="50" Background="#4CAF50" Foreground="White"/>
                     <Button Content="← VOLVER" Click="BtnCancelCobro_Click" Height="45" Background="#E53935" Foreground="White" Margin="0,10,0,0"/>
                 </StackPanel>

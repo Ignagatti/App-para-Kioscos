@@ -10,13 +10,12 @@ using System.Windows.Input;
 using MySqlConnector;
 using Newtonsoft.Json.Linq;
 using System.Data;
-using System.Collections.Generic; // Agregado para que funcione List<>
+using System.Collections.Generic;
 
 namespace KioscoApp
 {
     public partial class MainWindow : Window
     {
-        // Doble configuración de conexión para Emanuel y Gtacinco135
         private string[] posiblesConnStrs = {
             "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Emanuel;Port=3306;AllowUserVariables=True",
             "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Gtacinco135;Port=3306;AllowUserVariables=True"  
@@ -31,23 +30,26 @@ namespace KioscoApp
         {
             InitializeComponent();
             dgCarrito.ItemsSource = carrito;
-
-            // Intentar establecer la conexión válida al arrancar
             EstablecerConexionValida();
 
-            // Cargar inventario al seleccionar la pestaña correspondiente
+            // EVENTO ACTUALIZADO: Maneja la carga de Inventario y ahora también de Caja
             MainTabs.SelectionChanged += (s, e) =>
             {
-                if (MainTabs.SelectedItem is TabItem ti && ti.Header != null && ti.Header.ToString()!.Contains("INVENTARIO"))
+                if (MainTabs.SelectedItem is TabItem ti && ti.Header != null)
                 {
-                    CargarInventario();
+                    string tabHeader = ti.Header.ToString()!;
+                    if (tabHeader.Contains("INVENTARIO"))
+                    {
+                        CargarInventario();
+                    }
+                    else if (tabHeader.Contains("CAJA"))
+                    {
+                        CargarCaja();
+                    }
                 }
             };
 
-            Loaded += (s, e) =>
-            {
-                txtBarcodeVenta.Focus();
-            };
+            Loaded += (s, e) => { txtBarcodeVenta.Focus(); };
         }
 
         private void EstablecerConexionValida()
@@ -71,43 +73,87 @@ namespace KioscoApp
 
         private MySqlConnection GetConnection() => new MySqlConnection(connStrActiva);
 
-        private void CargarInventario()
+        // --- LÓGICA DE CAJA Y REGISTRO ---
+        private void CargarCaja()
         {
             try
             {
-                // 1. LIMPIAR la lista de respaldo para el buscador (¡Muy importante!)
-                inventarioCompleto.Clear(); 
+                ObservableCollection<VentaResumen> ventas = new ObservableCollection<VentaResumen>();
+                decimal totalEfectivo = 0;
+                decimal totalOtros = 0;
 
-                ObservableCollection<Producto> listaInventario = new ObservableCollection<Producto>();
-                
                 using (MySqlConnection conn = GetConnection())
                 {
                     conn.Open();
-                    string sql = @"SELECT p.id, p.codigo_barras, p.nombre, p.precio, p.stock, c.nombre as categoria_nombre 
-                                   FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id";
-                    
+                    // Consulta avanzada: une la venta con sus productos concatenados en un solo texto
+                    string sql = @"SELECT v.fecha, v.metodo_pago, v.cantidad_items, v.total, 
+                                   GROUP_CONCAT(CONCAT(vd.nombre, ' (x', vd.cantidad, ')') SEPARATOR ', ') as detalle
+                                   FROM ventas v
+                                   LEFT JOIN venta_detalles vd ON v.id = vd.venta_id
+                                   GROUP BY v.id
+                                   ORDER BY v.fecha DESC";
+
                     MySqlCommand cmd = new MySqlCommand(sql, conn);
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            // Creamos el objeto producto una sola vez
+                            var v = new VentaResumen {
+                                Fecha = Convert.ToDateTime(reader["fecha"]),
+                                MetodoPago = reader["metodo_pago"].ToString() ?? "Efectivo",
+                                CantidadItems = Convert.ToInt32(reader["cantidad_items"]),
+                                Total = Convert.ToDecimal(reader["total"]),
+                                DetalleTexto = reader["detalle"]?.ToString() ?? "Sin detalle"
+                            };
+                            ventas.Add(v);
+
+                            // Sumar totales según método
+                            if (v.MetodoPago == "Efectivo") totalEfectivo += v.Total;
+                            else totalOtros += v.Total;
+                        }
+                    }
+                }
+
+                // Vincular datos al DataGrid de la pestaña Caja
+                dgHistorialVentas.ItemsSource = ventas;
+                
+                // Actualizar los cuadritos de resumen
+                lblCajaEfectivo.Text = totalEfectivo.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
+                lblCajaOtros.Text = totalOtros.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
+                lblCajaTotal.Text = (totalEfectivo + totalOtros).ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
+            }
+            catch (Exception ex) { MessageBox.Show("Error al cargar caja: " + ex.Message); }
+        }
+
+        private void CargarInventario()
+        {
+            try
+            {
+                inventarioCompleto.Clear(); 
+                ObservableCollection<Producto> listaInventario = new ObservableCollection<Producto>();
+                using (MySqlConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    string sql = @"SELECT p.id, p.codigo_barras, p.nombre, p.precio, p.stock, c.nombre as categoria_nombre 
+                                   FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id";
+                    MySqlCommand cmd = new MySqlCommand(sql, conn);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
                             var nuevoProducto = new Producto {
                                 Id = Convert.ToInt32(reader["id"]),
                                 CodigoBarras = reader["codigo_barras"]?.ToString() ?? "",
                                 Nombre = reader["nombre"]?.ToString() ?? "",
                                 Precio = Convert.ToDecimal(reader["precio"]),
-                                Stock = Convert.ToInt32(reader["stock"]), 
+                                Stock = Convert.ToDecimal(reader["stock"]), 
                                 Categoria = reader["categoria_nombre"]?.ToString() ?? "General"
                             };
-
-                            // 2. AGREGAR A AMBAS LISTAS
-                            listaInventario.Add(nuevoProducto);      // Para que se vea en la tabla ya mismo
-                            inventarioCompleto.Add(nuevoProducto);   // Para que el buscador lo tenga en memoria
+                            listaInventario.Add(nuevoProducto);
+                            inventarioCompleto.Add(nuevoProducto);
                         }
                     }
                 }
-                
                 dgInventario.ItemsSource = listaInventario;
             } 
             catch (Exception ex) { MessageBox.Show("Error al cargar inventario: " + ex.Message); }
@@ -144,7 +190,6 @@ namespace KioscoApp
             } catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
 
-        // EVENTOS DE VENTA
         private void TxtBarcodeVenta_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter) {
@@ -201,7 +246,6 @@ namespace KioscoApp
             if (dgCarrito.SelectedItem is Producto p) { carrito.Remove(p); CalcularTotal(); }
         }
 
-        // COBRO
         private void AbrirPanelCobro()
         {
             lblTotalCobro.Text = totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
@@ -254,7 +298,6 @@ namespace KioscoApp
         private void GridCobro_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) gridCobro.Visibility = Visibility.Collapsed; }
         private void CbMetodoPago_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
 
-        // CARGA DE PRODUCTOS
         private async void TxtCargaBarcode_LostFocus(object sender, RoutedEventArgs e)
         {
             string barcode = txtCargaBarcode.Text.Trim();
@@ -294,34 +337,20 @@ namespace KioscoApp
         private void BtnManualConfirm_Click(object sender, RoutedEventArgs e) {
             if (decimal.TryParse(txtManualPrecio.Text, out decimal p)) { AgregarAlCarrito(txtManualNombre.Text, p); gridManual.Visibility = Visibility.Collapsed; }
         }
-        
         private void DgInventario_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e) { }
 
-        // AQUÍ ES DONDE FALTABA PONER LA FUNCIÓN (DENTRO DE LA CLASE)
         private void TxtBuscarInventario_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // Si la lista de respaldo es nula, evitamos el error
             if (inventarioCompleto == null) return;
-
             string filtro = txtBuscarInventario.Text.ToLower();
-
-            if (string.IsNullOrEmpty(filtro))
-            {
-                dgInventario.ItemsSource = inventarioCompleto;
-            }
-            else
-            {
-                var listaFiltrada = inventarioCompleto
-                    .Where(p => p.Nombre.ToLower().Contains(filtro) || p.CodigoBarras.Contains(filtro))
-                    .ToList();
-
+            if (string.IsNullOrEmpty(filtro)) { dgInventario.ItemsSource = inventarioCompleto; }
+            else {
+                var listaFiltrada = inventarioCompleto.Where(p => p.Nombre.ToLower().Contains(filtro) || p.CodigoBarras.Contains(filtro)).ToList();
                 dgInventario.ItemsSource = listaFiltrada;
             }
         }
+    }
 
-    } // <--- AQUÍ TERMINA LA CLASE MAINWINDOW
-
-    // AQUÍ EMPIEZA LA CLASE PRODUCTO
     public class Producto {
         public int Id { get; set; }
         public string CodigoBarras { get; set; } = "";
@@ -329,5 +358,14 @@ namespace KioscoApp
         public decimal Precio { get; set; }
         public decimal Stock { get; set; } 
         public string Categoria { get; set; } = "General";
+    }
+
+    // NUEVA CLASE PARA EL HISTORIAL DE VENTAS
+    public class VentaResumen {
+        public DateTime Fecha { get; set; }
+        public string MetodoPago { get; set; } = "";
+        public int CantidadItems { get; set; }
+        public decimal Total { get; set; }
+        public string DetalleTexto { get; set; } = "";
     }
 }
