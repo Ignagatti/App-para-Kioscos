@@ -10,19 +10,20 @@ CREATE TABLE categorias (
     descripcion TEXT
 ) ENGINE=InnoDB;
 
--- 3. TABLA DE PRODUCTOS (Actualizada para peso y fracciones)
+-- 3. TABLA DE PRODUCTOS
+-- Se usa DECIMAL(10,3) para permitir stock fraccionado (ej: 1.500 kg de queso)
 CREATE TABLE productos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     codigo_barras VARCHAR(50) UNIQUE NOT NULL,
     nombre VARCHAR(150) NOT NULL,
     precio DECIMAL(10, 2) NOT NULL,
-    unidad_medida VARCHAR(20) DEFAULT 'Unidad', -- Unidad, Kg, Blister, etc.
-    stock DECIMAL(10, 3) DEFAULT 0.000,         -- Ahora permite 20.500 kg
+    stock DECIMAL(10, 3) DEFAULT 0.000, 
     categoria_id INT DEFAULT NULL,
     CONSTRAINT fk_categoria FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 -- 4. TABLA DE VENTAS
+-- Incluye 'metodo_pago' para que la App no de error al finalizar
 CREATE TABLE ventas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     total DECIMAL(10, 2) NOT NULL,
@@ -31,26 +32,33 @@ CREATE TABLE ventas (
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- 5. TABLA DE DETALLES (Actualizada para cantidades fraccionadas)
+-- 5. TABLA DE DETALLES
+-- 'cantidad' es DECIMAL para poder vender 0.100 kg (100 gramos)
 CREATE TABLE venta_detalles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     venta_id INT NOT NULL,
     nombre VARCHAR(150) NOT NULL,
     precio DECIMAL(10, 2) NOT NULL,
-    cantidad DECIMAL(10, 3) DEFAULT 1.000,      -- Ahora puedes vender 0.100 de queso
+    cantidad DECIMAL(10, 3) DEFAULT 1.000,
     subtotal DECIMAL(10, 2) NOT NULL,
     FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- 6. DATOS INICIALES DE EJEMPLO
+-- 6. DATOS INICIALES
 INSERT INTO categorias (nombre, descripcion) VALUES 
-('Fiambrería', 'Quesos y fiambres por peso'),
-('Farmacia', 'Medicamentos y tiras'),
-('Bebidas', 'Gaseosas y jugos');
+('Panificados', 'Productos de panadería'),
+('Lácteos', 'Leches y derivados'),
+('Fiambrería', 'Quesos y embutidos por peso'),
+('Farmacia', 'Medicamentos y artículos de cuidado');
 
-INSERT INTO productos (codigo_barras, nombre, precio, unidad_medida, stock, categoria_id) VALUES 
-('101', 'Queso Tybo (x Kg)', 8500.00, 'Kg', 10.500, 1),
-('202', 'Aspirina (x Tira)', 500.00, 'Unidad', 50.000, 2),
-('7791236', 'Coca Cola 500ml', 950.00, 'Unidad', 24.000, 3);
+-- Productos de ejemplo (7791237 es el queso para probar gramos)
+INSERT INTO productos (codigo_barras, nombre, precio, stock, categoria_id) VALUES 
+('7791234', 'Pan de salvado', 1500.00, 20.000, 1),
+('7791235', 'Leche Descremada 1L', 1200.00, 30.000, 2),
+('7791237', 'Queso Tybo (Precio x Kg)', 8500.00, 10.500, 3),
+('101', 'Aspirina (x Tira)', 500.00, 100.000, 4);
+
+-- Verificación
+SELECT * FROM productos;
 
 select * from productos;
