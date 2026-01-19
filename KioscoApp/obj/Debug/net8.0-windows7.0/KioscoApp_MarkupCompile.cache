@@ -4,16 +4,16 @@
 winexe
 C#
 .cs
-C:\Users\Usuario\OneDrive\KioscoApp\KioscoApp\obj\Debug\net8.0-windows7.0\
+C:\Users\SFC\OneDrive\KioscoApp\KioscoApp\obj\Debug\net8.0-windows7.0\
 KioscoApp
 none
 false
-TRACE;DEBUG;NET;NET8_0;NETCOREAPP
-C:\Users\Usuario\OneDrive\KioscoApp\KioscoApp\App.xaml
+TRACE;DEBUG;NET;NET8_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
+C:\Users\SFC\OneDrive\KioscoApp\KioscoApp\App.xaml
 11407045341
 
 4-1593574663
-201339897838
+201-593152651
 MainWindow.xaml;
 
 False
