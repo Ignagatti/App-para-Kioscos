@@ -10,6 +10,7 @@ using System.Windows.Input;
 using MySqlConnector;
 using Newtonsoft.Json.Linq;
 using System.Data;
+using System.Collections.Generic; // Agregado para que funcione List<>
 
 namespace KioscoApp
 {
@@ -18,11 +19,12 @@ namespace KioscoApp
         // Doble configuración de conexión para Emanuel y Gtacinco135
         private string[] posiblesConnStrs = {
             "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Emanuel;Port=3306;AllowUserVariables=True",
-            "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Gtacinco135;Port=3306;AllowUserVariables=True"
+            "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Gtacinco135;Port=3306;AllowUserVariables=True"  
         };
 
-        private string connStrActiva = "";
         ObservableCollection<Producto> carrito = new ObservableCollection<Producto>();
+        List<Producto> inventarioCompleto = new List<Producto>();
+        private string connStrActiva = "";
         decimal totalVenta = 0;
 
         public MainWindow()
@@ -73,30 +75,42 @@ namespace KioscoApp
         {
             try
             {
+                // 1. LIMPIAR la lista de respaldo para el buscador (¡Muy importante!)
+                inventarioCompleto.Clear(); 
+
                 ObservableCollection<Producto> listaInventario = new ObservableCollection<Producto>();
+                
                 using (MySqlConnection conn = GetConnection())
                 {
                     conn.Open();
                     string sql = @"SELECT p.id, p.codigo_barras, p.nombre, p.precio, p.stock, c.nombre as categoria_nombre 
                                    FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id";
+                    
                     MySqlCommand cmd = new MySqlCommand(sql, conn);
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            listaInventario.Add(new Producto {
+                            // Creamos el objeto producto una sola vez
+                            var nuevoProducto = new Producto {
                                 Id = Convert.ToInt32(reader["id"]),
                                 CodigoBarras = reader["codigo_barras"]?.ToString() ?? "",
                                 Nombre = reader["nombre"]?.ToString() ?? "",
                                 Precio = Convert.ToDecimal(reader["precio"]),
-                                Stock = Convert.ToDecimal(reader["stock"]),
+                                Stock = Convert.ToInt32(reader["stock"]), 
                                 Categoria = reader["categoria_nombre"]?.ToString() ?? "General"
-                            });
+                            };
+
+                            // 2. AGREGAR A AMBAS LISTAS
+                            listaInventario.Add(nuevoProducto);      // Para que se vea en la tabla ya mismo
+                            inventarioCompleto.Add(nuevoProducto);   // Para que el buscador lo tenga en memoria
                         }
                     }
                 }
+                
                 dgInventario.ItemsSource = listaInventario;
-            } catch (Exception ex) { MessageBox.Show("Error al cargar inventario: " + ex.Message); }
+            } 
+            catch (Exception ex) { MessageBox.Show("Error al cargar inventario: " + ex.Message); }
         }
 
         private void CalcularTotal()
@@ -280,15 +294,40 @@ namespace KioscoApp
         private void BtnManualConfirm_Click(object sender, RoutedEventArgs e) {
             if (decimal.TryParse(txtManualPrecio.Text, out decimal p)) { AgregarAlCarrito(txtManualNombre.Text, p); gridManual.Visibility = Visibility.Collapsed; }
         }
+        
         private void DgInventario_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e) { }
-    }
 
+        // AQUÍ ES DONDE FALTABA PONER LA FUNCIÓN (DENTRO DE LA CLASE)
+        private void TxtBuscarInventario_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Si la lista de respaldo es nula, evitamos el error
+            if (inventarioCompleto == null) return;
+
+            string filtro = txtBuscarInventario.Text.ToLower();
+
+            if (string.IsNullOrEmpty(filtro))
+            {
+                dgInventario.ItemsSource = inventarioCompleto;
+            }
+            else
+            {
+                var listaFiltrada = inventarioCompleto
+                    .Where(p => p.Nombre.ToLower().Contains(filtro) || p.CodigoBarras.Contains(filtro))
+                    .ToList();
+
+                dgInventario.ItemsSource = listaFiltrada;
+            }
+        }
+
+    } // <--- AQUÍ TERMINA LA CLASE MAINWINDOW
+
+    // AQUÍ EMPIEZA LA CLASE PRODUCTO
     public class Producto {
         public int Id { get; set; }
         public string CodigoBarras { get; set; } = "";
         public string Nombre { get; set; } = "";
         public decimal Precio { get; set; }
-        public decimal Stock { get; set; } // Decimal para quesos
+        public decimal Stock { get; set; } 
         public string Categoria { get; set; } = "General";
     }
 }

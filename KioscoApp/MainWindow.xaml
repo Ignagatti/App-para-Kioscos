@@ -132,9 +132,7 @@
             <TabItem Header="INVENTARIO" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <RowDefinition Height="Auto"/> <RowDefinition Height="*"/>    </Grid.RowDefinitions>
 
                     <Border Background="#FF9800" CornerRadius="10" Padding="20" Margin="0,0,0,20">
                         <StackPanel>
@@ -143,17 +141,29 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Row="1" Background="White" CornerRadius="10" Padding="20" BorderBrush="#E0E0E0" BorderThickness="1">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,15">
+                        <TextBlock Text="🔍" VerticalAlignment="Center" FontSize="20" Margin="5,0,10,0"/>
+                        <TextBox x:Name="txtBuscarInventario" 
+                                Width="350" 
+                                Height="35" 
+                                FontSize="14" 
+                                VerticalContentAlignment="Center"
+                                Padding="5"
+                                TextChanged="TxtBuscarInventario_TextChanged" 
+                                ToolTip="Escribí para buscar por nombre o código..."/>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="20" BorderBrush="#E0E0E0" BorderThickness="1">
                         <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" CanUserAddRows="False" 
-                                  GridLinesVisibility="Horizontal" RowHeight="45" FontSize="14" 
-                                  Background="White" BorderThickness="0" AlternatingRowBackground="#F9F9F9"
-                                  CellEditEnding="DgInventario_CellEditEnding">
+                                GridLinesVisibility="Horizontal" RowHeight="45" FontSize="14" 
+                                Background="White" BorderThickness="0" AlternatingRowBackground="#F9F9F9"
+                                CellEditEnding="DgInventario_CellEditEnding">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="130" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="150" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
-                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock}" Width="80"/>
+                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock, StringFormat={}{0:0.###}}" Width="80"/>
                                 <DataGridTemplateColumn Header="Estado" Width="100">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -177,7 +187,6 @@
                     </Border>
                 </Grid>
             </TabItem>
-        </TabControl>
 
         <Grid x:Name="gridManual" Visibility="Collapsed" Background="#CC000000">
             <Border Background="White" Width="400" CornerRadius="16" VerticalAlignment="Center" Padding="30">
@@ -192,7 +201,8 @@
                 </StackPanel>
             </Border>
         </Grid>
-
+        
+        </TabControl>
         <Grid x:Name="gridCobro" Visibility="Collapsed" Background="#CC000000" KeyDown="GridCobro_KeyDown">
             <Border Background="White" Width="420" CornerRadius="16" VerticalAlignment="Center" Padding="35">
                 <StackPanel>
