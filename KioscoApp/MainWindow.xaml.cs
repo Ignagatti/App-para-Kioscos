@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using MySqlConnector;
 using Newtonsoft.Json.Linq;
 using System.Data;
@@ -144,7 +145,6 @@ namespace KioscoApp
                     }
                 }
                 dgHistorialVentas.ItemsSource = vs;
-                // Forzamos el símbolo de peso en el código por si la región está en España
                 lblCajaEfectivo.Text = "$ " + (montoAperturaActual + vE).ToString("#,##0");
                 lblCajaOtros.Text = "$ " + vO.ToString("#,##0");
                 lblCajaTotal.Text = "$ " + (vE + vO).ToString("#,##0");
@@ -230,6 +230,35 @@ namespace KioscoApp
             } catch { }
         }
 
+        // --- MEJORAS DE EDICIÓN RÁPIDA ---
+
+        private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var dep = (DependencyObject)e.OriginalSource;
+            while (dep != null && !(dep is DataGridCell))
+                dep = VisualTreeHelper.GetParent(dep);
+
+            if (dep is DataGridCell cell)
+            {
+                if (!cell.IsEditing && !cell.IsReadOnly)
+                {
+                    if (!cell.IsFocused) cell.Focus();
+                    var grid = (DataGrid)sender;
+                    grid.BeginEdit(e);
+                }
+            }
+        }
+
+        private void DgInventario_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                dgInventario.CommitEdit();
+                dgInventario.CommitEdit(); // Doble commit para asegurar el bindeo
+                e.Handled = true;
+            }
+        }
+
         private void DgInventario_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e) {
             if (e.EditAction == DataGridEditAction.Commit) {
                 var p = e.Row.Item as Producto;
@@ -252,6 +281,8 @@ namespace KioscoApp
                 }
             }
         }
+
+        // --- FIN MEJORAS EDICIÓN ---
 
         private void TxtBuscarInventario_TextChanged(object sender, TextChangedEventArgs e) {
             string f = txtBuscarInventario.Text.ToLower();
@@ -283,7 +314,7 @@ namespace KioscoApp
                                 Nombre = r["nombre"].ToString()!, 
                                 Precio = Convert.ToInt32(r.GetDecimal("precio")) 
                             });
-                        } else { MessageBox.Show("No existe"); } 
+                        } else { MessageBox.Show("No existe el producto"); } 
                     } 
                 } 
             } catch { } 
@@ -360,7 +391,7 @@ namespace KioscoApp
                     cmd.Parameters.AddWithValue("@p", int.Parse(txtCargaPrecio.Text)); 
                     cmd.Parameters.AddWithValue("@s", int.Parse(txtCargaStock.Text)); 
                     cmd.ExecuteNonQuery(); 
-                    MessageBox.Show("Guardado"); 
+                    MessageBox.Show("Guardado correctamente"); 
                 } 
             } catch (Exception ex) { MessageBox.Show(ex.Message); }
         }
