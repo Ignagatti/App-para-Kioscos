@@ -56,7 +56,7 @@
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Nombre}" FontWeight="Bold" Margin="0,0,10,0"/>
-                                        <TextBlock Text="{Binding Precio, StringFormat='$ {0:F2}'}" Foreground="#2196F3"/>
+                                        <TextBlock Text="{Binding Precio, StringFormat='$ {0}'}" Foreground="#2196F3"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -68,7 +68,7 @@
                                       GridLinesVisibility="Horizontal" RowHeight="40" FontSize="13" Background="White">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*"/>
-                                    <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
+                                    <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0'}" Width="120"/>
                                     <DataGridTemplateColumn Width="80">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -80,8 +80,7 @@
                             </DataGrid>
                         </Border>
                         
-                        <Button Content="➕ AGREGAR PRODUCTO MANUAL" Click="BtnManualOpen_Click" Height="45" 
-                                Background="#7B1FA2" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                        <Button Content="➕ AGREGAR PRODUCTO MANUAL" Click="BtnManualOpen_Click" Style="{StaticResource ModernButton}" Background="#7B1FA2"/>
                     </StackPanel>
 
                     <Border Grid.Column="1" Background="White" CornerRadius="12" Padding="25" BorderBrush="#E0E0E0" BorderThickness="1">
@@ -89,11 +88,11 @@
                             <Border Background="#2E7D32" CornerRadius="10" Padding="15" Margin="0,0,0,20">
                                 <StackPanel>
                                     <TextBlock Text="TOTAL A PAGAR" FontSize="13" Foreground="#C8E6C9" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="lblTotal" Text="$ 0.00" FontSize="48" FontWeight="ExtraBold" Foreground="White" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="lblTotal" Text="$ 0" FontSize="48" FontWeight="ExtraBold" Foreground="White" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
-                            <TextBlock Text="Artículos: " FontWeight="Bold" Foreground="#555"/>
-                            <TextBlock x:Name="lblItemCount" Text="0" FontSize="20" Foreground="#2196F3" FontWeight="Bold" Margin="0,0,0,15"/>
+                            <TextBlock Text="Artículos: " FontWeight="Bold" Foreground="#555" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="lblItemCount" Text="0" FontSize="20" Foreground="#2196F3" FontWeight="Bold" Margin="0,0,0,15" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -103,26 +102,20 @@
                 <ScrollViewer Background="#F5F5F5">
                     <StackPanel Margin="40" MaxWidth="600" HorizontalAlignment="Left">
                         <Border Background="#1976D2" CornerRadius="10" Padding="20" Margin="0,0,0,30">
-                            <StackPanel>
-                                <TextBlock Text="📦 CARGAR INVENTARIO" FontSize="24" FontWeight="ExtraBold" Foreground="White"/>
-                            </StackPanel>
+                            <TextBlock Text="📦 CARGAR INVENTARIO" FontSize="24" FontWeight="ExtraBold" Foreground="White"/>
                         </Border>
                         <Border Background="White" CornerRadius="10" Padding="25" BorderBrush="#E0E0E0" BorderThickness="1">
                             <StackPanel>
                                 <TextBlock Text="Código de Barras" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaBarcode" Height="40" Margin="0,0,0,18" LostFocus="TxtCargaBarcode_LostFocus" KeyDown="TxtCargaBarcode_KeyDown"/>
-                                
                                 <TextBlock Text="Nombre del Producto" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaNombre" Height="40" Margin="0,0,0,18"/>
-                                
-                                <TextBlock Text="Precio de Venta ($ ARS)" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <TextBlock Text="Precio de Venta" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaPrecio" Height="40" Margin="0,0,0,18"/>
-
                                 <TextBlock Text="Stock Inicial" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaStock" Height="40" Margin="0,0,0,25" Text="0"/>
-                                
-                                <Button Content="💾 GUARDAR EN BASE DE DATOS" Click="BtnGuardar_Click" Height="50" Background="#2E7D32" Foreground="White" FontWeight="Bold"/>
-                                <TextBlock x:Name="lblCargaStatus" Text="Estado: Esperando..." Margin="0,15,0,0" FontStyle="Italic" Foreground="#666"/>
+                                <Button Content="💾 GUARDAR PRODUCTO" Click="BtnGuardar_Click" Style="{StaticResource ModernButton}" Background="#2E7D32"/>
+                                <TextBlock x:Name="lblCargaStatus" Text="Listo" Margin="0,15,0,0" FontStyle="Italic" Foreground="#666"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -136,49 +129,17 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-
                     <Border Background="#FF9800" CornerRadius="10" Padding="20" Margin="0,0,0,20">
-                        <StackPanel>
-                            <TextBlock Text="📋 GESTIÓN DE INVENTARIO" FontSize="24" FontWeight="ExtraBold" Foreground="White"/>
-                            <TextBlock Text="Lista completa de productos sincronizada con MySQL" FontSize="12" Foreground="#FFF3E0"/>
-                        </StackPanel>
+                        <TextBlock Text="📋 GESTIÓN DE INVENTARIO" FontSize="24" FontWeight="ExtraBold" Foreground="White"/>
                     </Border>
-
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,15">
-                        <TextBlock Text="🔍" VerticalAlignment="Center" FontSize="20" Margin="5,0,10,0"/>
-                        <TextBox x:Name="txtBuscarInventario" Width="350" Height="35" FontSize="14" VerticalContentAlignment="Center"
-                                 Padding="5" TextChanged="TxtBuscarInventario_TextChanged" ToolTip="Busca por nombre o código..."/>
-                    </StackPanel>
-
+                    <TextBox x:Name="txtBuscarInventario" Grid.Row="1" Height="35" FontSize="14" Margin="0,0,0,15" TextChanged="TxtBuscarInventario_TextChanged" Tag="Buscar..."/>
                     <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="20" BorderBrush="#E0E0E0" BorderThickness="1">
-                        <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" CanUserAddRows="False" 
-                                  GridLinesVisibility="Horizontal" RowHeight="45" FontSize="14" 
-                                  Background="White" BorderThickness="0" AlternatingRowBackground="#F9F9F9"
-                                  CellEditEnding="DgInventario_CellEditEnding">
+                        <DataGrid x:Name="dgInventario" AutoGenerateColumns="False" CanUserAddRows="False" RowHeight="45" CellEditEnding="DgInventario_CellEditEnding">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="130" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="150" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="150" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
-                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock, StringFormat={}{0:0.###}}" Width="80"/>
-                                <DataGridTemplateColumn Header="Estado" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
-                                                        <Setter Property="Fill" Value="#4CAF50"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Stock}" Value="0">
-                                                                <Setter Property="Fill" Value="#F44336"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Precio" Binding="{Binding Precio, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:N0}}" Width="120"/>
+                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:N0}}" Width="100"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -189,57 +150,88 @@
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-
-                    <UniformGrid Rows="1" Columns="3" Margin="0,0,0,20">
+                    <UniformGrid Columns="3" Margin="0,0,0,20">
                         <Border Background="#4CAF50" CornerRadius="10" Padding="15" Margin="5">
                             <StackPanel>
-                                <TextBlock Text="EFECTIVO EN CAJA" Foreground="White" FontSize="12" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="lblCajaEfectivo" Text="$ 0,00" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="EFECTIVO EN CAJA" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="lblCajaEfectivo" Text="$ 0" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <Border Background="#2196F3" CornerRadius="10" Padding="15" Margin="5">
                             <StackPanel>
-                                <TextBlock Text="TRANSF / DÉBITO" Foreground="White" FontSize="12" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="lblCajaOtros" Text="$ 0,00" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="OTROS MEDIOS" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="lblCajaOtros" Text="$ 0" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                         <Border Background="#607D8B" CornerRadius="10" Padding="15" Margin="5">
                             <StackPanel>
-                                <TextBlock Text="TOTAL GENERAL" Foreground="White" FontSize="12" HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="lblCajaTotal" Text="$ 0,00" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="TOTAL VENTAS" Foreground="White" HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="lblCajaTotal" Text="$ 0" Foreground="White" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </UniformGrid>
+                    <DataGrid Grid.Row="1" x:Name="dgHistorialVentas" AutoGenerateColumns="False" CanUserAddRows="False" Margin="0,0,0,15">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat='HH:mm'}" Width="80"/>
+                            <DataGridTextColumn Header="Método" Binding="{Binding MetodoPago}" Width="120"/>
+                            <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ #,##0'}" Width="120"/>
+                            <DataGridTextColumn Header="Detalle" Binding="{Binding DetalleTexto}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Button Grid.Row="2" Content="🔒 CERRAR CAJA" Click="BtnCerrarCaja_Click" Style="{StaticResource ModernButton}" Background="#E53935" Height="50"/>
+                </Grid>
+            </TabItem>
 
-                    <TextBlock Grid.Row="1" Text="HISTORIAL DE VENTAS" FontWeight="Bold" Margin="5,0,0,10" FontSize="14"/>
-
-                    <Border Grid.Row="2" Background="White" CornerRadius="10" Padding="15" BorderBrush="#E0E0E0" BorderThickness="1">
-                        <DataGrid x:Name="dgHistorialVentas" AutoGenerateColumns="False" CanUserAddRows="False" GridLinesVisibility="Horizontal" RowHeight="35">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Fecha/Hora" Binding="{Binding Fecha, StringFormat='dd/MM/yyyy HH:mm'}" Width="150"/>
-                                <DataGridTextColumn Header="Método" Binding="{Binding MetodoPago}" Width="120"/>
-                                <DataGridTextColumn Header="Items" Binding="{Binding CantidadItems}" Width="80"/>
-                                <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ #,##0.00'}" Width="120" FontWeight="Bold"/>
-                                <DataGridTextColumn Header="Detalle" Binding="{Binding DetalleTexto}" Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+            <TabItem Header="REPORTES" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Background="#673AB7" CornerRadius="10" Padding="20" Margin="0,0,0,10">
+                        <TextBlock Text="📂 HISTORIAL DE CIERRES" FontSize="24" FontWeight="ExtraBold" Foreground="White"/>
                     </Border>
+                    <Border Grid.Row="1" Background="#EDE7F6" CornerRadius="10" Padding="15" Margin="0,0,0,15">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="RECAUDACIÓN TOTAL ACUMULADA: " VerticalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock x:Name="lblRecaudacionTotalHistorica" Text="$ 0" FontSize="22" FontWeight="ExtraBold" Foreground="#311B92" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <DataGrid Grid.Row="2" x:Name="dgHistorialCierres" AutoGenerateColumns="False" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Cierre" Binding="{Binding FechaCierre, StringFormat='dd/MM/yyyy HH:mm'}" Width="200"/>
+                            <DataGridTextColumn Header="Efectivo" Binding="{Binding MontoFinalEfectivo, StringFormat='$ #,##0'}" Width="150"/>
+                            <DataGridTextColumn Header="Otros" Binding="{Binding MontoFinalOtros, StringFormat='$ #,##0'}" Width="150"/>
+                            <DataGridTextColumn Header="TOTAL" Binding="{Binding TotalDia, StringFormat='$ #,##0'}" Width="*" FontWeight="Bold"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </Grid>
             </TabItem>
         </TabControl>
+
+        <Grid x:Name="gridApertura" Visibility="Collapsed" Background="#CC000000">
+            <Border Background="White" Width="380" CornerRadius="16" VerticalAlignment="Center" Padding="35">
+                <StackPanel>
+                    <TextBlock Text="💰 APERTURA DE CAJA" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <TextBox x:Name="txtMontoInicial" FontSize="28" Height="60" Text="0" TextAlignment="Center" VerticalContentAlignment="Center" BorderBrush="#2196F3" BorderThickness="2"/>
+                    <Button Content="ABRIR TURNO" Click="BtnAbrirCaja_Click" Style="{StaticResource ModernButton}" Background="#4CAF50" Margin="0,20,0,0" Height="50"/>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <Grid x:Name="gridManual" Visibility="Collapsed" Background="#CC000000">
             <Border Background="White" Width="400" CornerRadius="16" VerticalAlignment="Center" Padding="30">
                 <StackPanel>
                     <TextBlock Text="➕ PRODUCTO MANUAL" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
-                    <TextBox x:Name="txtManualNombre" Height="40" Margin="0,0,0,15" BorderBrush="#BDBDBD" Padding="10,5"/>
-                    <TextBox x:Name="txtManualPrecio" Height="40" Margin="0,0,0,25" BorderBrush="#BDBDBD" Padding="10,5"/>
+                    <TextBox x:Name="txtManualNombre" Height="40" Margin="0,0,0,15" Tag="Nombre..."/>
+                    <TextBox x:Name="txtManualPrecio" Height="40" Margin="0,0,0,25" Tag="Precio..."/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Cancelar" Click="BtnManualCancel_Click" Margin="0,0,10,0" Width="80"/>
-                        <Button Content="Agregar" Click="BtnManualConfirm_Click" Background="#4CAF50" Foreground="White" Width="80"/>
+                        <Button Content="Cancelar" Click="BtnManualCancel_Click" Margin="0,0,10,0" Width="100"/>
+                        <Button Content="Agregar" Click="BtnManualConfirm_Click" Style="{StaticResource ModernButton}" Background="#4CAF50" Width="100"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -248,21 +240,18 @@
         <Grid x:Name="gridCobro" Visibility="Collapsed" Background="#CC000000" KeyDown="GridCobro_KeyDown">
             <Border Background="White" Width="420" CornerRadius="16" VerticalAlignment="Center" Padding="35">
                 <StackPanel>
-                    <TextBlock Text="💳 COBRAR VENTA" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,25"/>
+                    <TextBlock Text="💳 COBRAR" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,25"/>
                     <Border Background="#2E7D32" CornerRadius="10" Padding="15" Margin="0,0,0,20">
                         <TextBlock x:Name="lblTotalCobro" FontSize="40" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
                     </Border>
-                    <ComboBox x:Name="cbMetodoPago" Height="40" Margin="0,0,0,15" SelectedIndex="0" SelectionChanged="CbMetodoPago_SelectionChanged">
+                    <ComboBox x:Name="cbMetodoPago" Height="40" Margin="0,0,0,15" SelectedIndex="0">
                         <ComboBoxItem Content="Efectivo"/>
-                        <ComboBoxItem Content="Tarjeta de Débito"/>
-                        <ComboBoxItem Content="Tarjeta de Crédito"/>
-                        <ComboBoxItem Content="Transferencia"/>
+                        <ComboBoxItem Content="Otros"/>
                     </ComboBox>
-                    <TextBlock x:Name="lblPagaCon" Text="Paga con ($)" Margin="0,0,0,5"/>
                     <TextBox x:Name="txtPagaCon" FontSize="28" Height="55" Margin="0,0,0,20" TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"/>
-                    <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="36" Foreground="#D32F2F" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,20"/>
-                    <Button Content="✓ FINALIZAR" Click="BtnConfirmarVenta_Click" Height="50" Background="#4CAF50" Foreground="White"/>
-                    <Button Content="← VOLVER" Click="BtnCancelCobro_Click" Height="45" Background="#E53935" Foreground="White" Margin="0,10,0,0"/>
+                    <TextBlock x:Name="lblVuelto" Text="$ 0" FontSize="36" Foreground="#D32F2F" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,20"/>
+                    <Button Content="✓ FINALIZAR" Click="BtnConfirmarVenta_Click" Style="{StaticResource ModernButton}" Background="#4CAF50" Height="55"/>
+                    <Button Content="← VOLVER" Click="BtnCancelCobro_Click" Margin="0,10,0,0" Background="Transparent" Foreground="#666" BorderThickness="0"/>
                 </StackPanel>
             </Border>
         </Grid>
