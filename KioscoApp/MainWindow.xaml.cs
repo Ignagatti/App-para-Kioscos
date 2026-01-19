@@ -144,9 +144,10 @@ namespace KioscoApp
                     }
                 }
                 dgHistorialVentas.ItemsSource = vs;
-                lblCajaEfectivo.Text = (montoAperturaActual + vE).ToString("C0");
-                lblCajaOtros.Text = vO.ToString("C0");
-                lblCajaTotal.Text = (vE + vO).ToString("C0");
+                // Forzamos el símbolo de peso en el código por si la región está en España
+                lblCajaEfectivo.Text = "$ " + (montoAperturaActual + vE).ToString("#,##0");
+                lblCajaOtros.Text = "$ " + vO.ToString("#,##0");
+                lblCajaTotal.Text = "$ " + (vE + vO).ToString("#,##0");
             } catch { }
         }
 
@@ -169,7 +170,7 @@ namespace KioscoApp
                     }
                 }
                 dgHistorialCierres.ItemsSource = ses;
-                lblRecaudacionTotalHistorica.Text = acc.ToString("C0");
+                lblRecaudacionTotalHistorica.Text = "$ " + acc.ToString("#,##0");
             } catch { }
         }
 
@@ -243,7 +244,10 @@ namespace KioscoApp
                                 cmd.Parameters.AddWithValue("@id", p.Id);
                                 cmd.ExecuteNonQuery();
                             }
-                        } catch (Exception ex) { MessageBox.Show(ex.Message); CargarInventario(); }
+                        } catch (Exception ex) { 
+                            MessageBox.Show("Error al guardar: " + ex.Message); 
+                            CargarInventario(); 
+                        }
                     }), System.Windows.Threading.DispatcherPriority.Background);
                 }
             }
@@ -257,7 +261,7 @@ namespace KioscoApp
 
         private void CalcularTotal() { 
             totalVenta = carrito.Sum(p => p.Precio); 
-            lblTotal.Text = totalVenta.ToString("C0"); 
+            lblTotal.Text = "$ " + totalVenta.ToString("#,##0"); 
             lblItemCount.Text = carrito.Count.ToString(); 
         }
 
@@ -325,8 +329,8 @@ namespace KioscoApp
         }
 
         private void BtnQuitar_Click(object sender, RoutedEventArgs e) { if (dgCarrito.SelectedItem is Producto p) { carrito.Remove(p); CalcularTotal(); } }
-        private void AbrirPanelCobro() { lblTotalCobro.Text = totalVenta.ToString("C0"); gridCobro.Visibility = Visibility.Visible; txtPagaCon.Focus(); }
-        private void TxtPagaCon_TextChanged(object sender, TextChangedEventArgs e) { if (int.TryParse(txtPagaCon.Text, out int p)) lblVuelto.Text = (p - totalVenta).ToString("C0"); }
+        private void AbrirPanelCobro() { lblTotalCobro.Text = "$ " + totalVenta.ToString("#,##0"); gridCobro.Visibility = Visibility.Visible; txtPagaCon.Focus(); }
+        private void TxtPagaCon_TextChanged(object sender, TextChangedEventArgs e) { if (int.TryParse(txtPagaCon.Text, out int p)) lblVuelto.Text = "$ " + (p - totalVenta).ToString("#,##0"); }
         private void TxtPagaCon_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) FinalizarVenta(); }
         private void BtnConfirmarVenta_Click(object sender, RoutedEventArgs e) => FinalizarVenta();
         private void BtnCancelCobro_Click(object sender, RoutedEventArgs e) { gridCobro.Visibility = Visibility.Collapsed; txtBarcodeVenta.Focus(); }

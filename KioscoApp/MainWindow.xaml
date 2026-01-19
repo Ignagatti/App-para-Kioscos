@@ -56,7 +56,7 @@
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Nombre}" FontWeight="Bold" Margin="0,0,10,0"/>
-                                        <TextBlock Text="{Binding Precio, StringFormat='$ {0}'}" Foreground="#2196F3"/>
+                                        <TextBlock Text="{Binding Precio, StringFormat='$ {0:#,##0}'}" Foreground="#2196F3"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -110,7 +110,7 @@
                                 <TextBox x:Name="txtCargaBarcode" Height="40" Margin="0,0,0,18" LostFocus="TxtCargaBarcode_LostFocus" KeyDown="TxtCargaBarcode_KeyDown"/>
                                 <TextBlock Text="Nombre del Producto" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaNombre" Height="40" Margin="0,0,0,18"/>
-                                <TextBlock Text="Precio de Venta" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <TextBlock Text="Precio de Venta ($)" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaPrecio" Height="40" Margin="0,0,0,18"/>
                                 <TextBlock Text="Stock Inicial" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaStock" Height="40" Margin="0,0,0,25" Text="0"/>
@@ -138,8 +138,8 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="150" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Precio" Binding="{Binding Precio, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:N0}}" Width="120"/>
-                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:N0}}" Width="100"/>
+                                <DataGridTextColumn Header="Precio ($)" Binding="{Binding Precio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='$ #,##0'}" Width="120"/>
+                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -228,7 +228,7 @@
                 <StackPanel>
                     <TextBlock Text="➕ PRODUCTO MANUAL" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
                     <TextBox x:Name="txtManualNombre" Height="40" Margin="0,0,0,15" Tag="Nombre..."/>
-                    <TextBox x:Name="txtManualPrecio" Height="40" Margin="0,0,0,25" Tag="Precio..."/>
+                    <TextBox x:Name="txtManualPrecio" Height="40" Margin="0,0,0,25" Tag="Precio ($)..."/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="Cancelar" Click="BtnManualCancel_Click" Margin="0,0,10,0" Width="100"/>
                         <Button Content="Agregar" Click="BtnManualConfirm_Click" Style="{StaticResource ModernButton}" Background="#4CAF50" Width="100"/>
