@@ -15,7 +15,7 @@ namespace KioscoApp
 {
     public partial class MainWindow : Window
     {
-        // Lista de posibles cadenas de conexión
+        // Doble configuración de conexión para Emanuel y Gtacinco135
         private string[] posiblesConnStrs = {
             "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Emanuel;Port=3306;AllowUserVariables=True",
             "Server=127.0.0.1;Database=KioscoDB;Uid=root;Pwd=Gtacinco135;Port=3306;AllowUserVariables=True"
@@ -33,6 +33,7 @@ namespace KioscoApp
             // Intentar establecer la conexión válida al arrancar
             EstablecerConexionValida();
 
+            // Cargar inventario al seleccionar la pestaña correspondiente
             MainTabs.SelectionChanged += (s, e) =>
             {
                 if (MainTabs.SelectedItem is TabItem ti && ti.Header != null && ti.Header.ToString()!.Contains("INVENTARIO"))
@@ -56,29 +57,17 @@ namespace KioscoApp
                     using (MySqlConnection conn = new MySqlConnection(cadena))
                     {
                         conn.Open();
-                        connStrActiva = cadena; // Si abre, esta es la que usamos
+                        connStrActiva = cadena;
                         return; 
                     }
                 }
-                catch (MySqlException ex) when (ex.Number == 1045) // Error de acceso denegado
-                {
-                    continue; // Probar la siguiente clave
-                }
-                catch (Exception) { continue; }
+                catch { continue; }
             }
-
             if (string.IsNullOrEmpty(connStrActiva))
-            {
-                MessageBox.Show("❌ No se pudo conectar con ninguna de las contraseñas (Emanuel o Gtacinco135).", "Error de Base de Datos");
-            }
+                MessageBox.Show("❌ Error: No se pudo conectar a la base de datos MySQL.");
         }
 
-        // Método auxiliar para obtener una conexión lista para usar
-        private MySqlConnection GetConnection()
-        {
-            if (string.IsNullOrEmpty(connStrActiva)) EstablecerConexionValida();
-            return new MySqlConnection(connStrActiva);
-        }
+        private MySqlConnection GetConnection() => new MySqlConnection(connStrActiva);
 
         private void CargarInventario()
         {
@@ -89,68 +78,130 @@ namespace KioscoApp
                 {
                     conn.Open();
                     string sql = @"SELECT p.id, p.codigo_barras, p.nombre, p.precio, p.stock, c.nombre as categoria_nombre 
-                                   FROM productos p 
-                                   LEFT JOIN categorias c ON p.categoria_id = c.id";
-
+                                   FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id";
                     MySqlCommand cmd = new MySqlCommand(sql, conn);
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            listaInventario.Add(new Producto
-                            {
+                            listaInventario.Add(new Producto {
                                 Id = Convert.ToInt32(reader["id"]),
                                 CodigoBarras = reader["codigo_barras"]?.ToString() ?? "",
-                                Nombre = reader["nombre"]?.ToString() ?? "Sin nombre",
+                                Nombre = reader["nombre"]?.ToString() ?? "",
                                 Precio = Convert.ToDecimal(reader["precio"]),
-                                Stock = Convert.ToDecimal(reader["stock"]), // Ahora decimal para pesar quesos
+                                Stock = Convert.ToDecimal(reader["stock"]),
                                 Categoria = reader["categoria_nombre"]?.ToString() ?? "General"
                             });
                         }
                     }
                 }
                 dgInventario.ItemsSource = listaInventario;
-            }
-            catch (Exception ex) { MessageBox.Show("Error al cargar inventario: " + ex.Message); }
+            } catch (Exception ex) { MessageBox.Show("Error al cargar inventario: " + ex.Message); }
         }
 
-        private void BtnGuardar_Click(object sender, RoutedEventArgs e)
+        private void CalcularTotal()
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(txtCargaBarcode.Text) || string.IsNullOrWhiteSpace(txtCargaNombre.Text)) return;
-                if (!decimal.TryParse(txtCargaPrecio.Text, out decimal precioValue)) return;
-                decimal.TryParse(txtCargaStock.Text, out decimal stockValue);
+            totalVenta = carrito.Sum(p => p.Precio);
+            lblTotal.Text = totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
+            lblItemCount.Text = carrito.Count.ToString();
+        }
 
-                using (MySqlConnection conn = GetConnection())
-                {
+        private void AgregarAlCarrito(string nombre, decimal precio)
+        {
+            carrito.Add(new Producto { Nombre = nombre, Precio = precio });
+            CalcularTotal();
+        }
+
+        private void BuscarYAgregar(string barcode)
+        {
+            try {
+                using (MySqlConnection conn = GetConnection()) {
+                    MySqlCommand cmd = new MySqlCommand("SELECT nombre, precio FROM productos WHERE codigo_barras = @c", conn);
+                    cmd.Parameters.AddWithValue("@c", barcode);
                     conn.Open();
-                    string sql = "INSERT INTO productos (codigo_barras, nombre, precio, stock) VALUES (@c, @n, @p, @s) ON DUPLICATE KEY UPDATE nombre=@n, precio=@p, stock=stock+@s";
-                    MySqlCommand cmd = new MySqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text.Trim());
-                    cmd.Parameters.AddWithValue("@n", txtCargaNombre.Text.Trim());
-                    cmd.Parameters.AddWithValue("@p", precioValue);
-                    cmd.Parameters.AddWithValue("@s", stockValue);
-                    cmd.ExecuteNonQuery();
-                    
-                    MessageBox.Show("✓ Producto guardado correctamente.");
-                    txtCargaBarcode.Clear(); txtCargaNombre.Clear(); txtCargaPrecio.Clear(); txtCargaStock.Text = "0";
+                    using (var reader = cmd.ExecuteReader()) {
+                        if (reader.Read()) {
+                            AgregarAlCarrito(reader["nombre"]?.ToString() ?? "Producto", Convert.ToDecimal(reader["precio"]));
+                        } else {
+                            MessageBox.Show("Producto no encontrado.");
+                        }
+                    }
                 }
+            } catch (Exception ex) { MessageBox.Show(ex.Message); }
+        }
+
+        // EVENTOS DE VENTA
+        private void TxtBarcodeVenta_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) {
+                e.Handled = true;
+                if (lstSuggestions.Visibility == Visibility.Visible && lstSuggestions.Items.Count > 0) {
+                    lstSuggestions.SelectedIndex = 0;
+                    if (lstSuggestions.SelectedItem is Producto p) {
+                        AgregarAlCarrito(p.Nombre, p.Precio);
+                        txtBarcodeVenta.Clear();
+                        lstSuggestions.Visibility = Visibility.Collapsed;
+                        return;
+                    }
+                }
+                string barcode = txtBarcodeVenta.Text.Trim();
+                if (string.IsNullOrEmpty(barcode)) { if (carrito.Count > 0) AbrirPanelCobro(); }
+                else { BuscarYAgregar(barcode); txtBarcodeVenta.Clear(); }
             }
-            catch (Exception ex) { MessageBox.Show("Error al guardar: " + ex.Message); }
+        }
+
+        private void TxtBarcodeVenta_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string query = txtBarcodeVenta.Text.Trim();
+            if (string.IsNullOrEmpty(query)) { lstSuggestions.Visibility = Visibility.Collapsed; return; }
+            try {
+                using (MySqlConnection conn = GetConnection()) {
+                    string sql = "SELECT nombre, precio FROM productos WHERE nombre LIKE @q OR codigo_barras LIKE @q LIMIT 10";
+                    MySqlCommand cmd = new MySqlCommand(sql, conn);
+                    cmd.Parameters.AddWithValue("@q", "%" + query + "%");
+                    conn.Open();
+                    var suggestions = new ObservableCollection<Producto>();
+                    using (var reader = cmd.ExecuteReader()) {
+                        while (reader.Read()) {
+                            suggestions.Add(new Producto { Nombre = reader["nombre"]?.ToString() ?? "", Precio = Convert.ToDecimal(reader["precio"]) });
+                        }
+                    }
+                    lstSuggestions.ItemsSource = suggestions;
+                    lstSuggestions.Visibility = suggestions.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
+            } catch { }
+        }
+
+        private void LstSuggestions_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (lstSuggestions.SelectedItem is Producto p) {
+                AgregarAlCarrito(p.Nombre, p.Precio);
+                txtBarcodeVenta.Clear();
+                lstSuggestions.Visibility = Visibility.Collapsed;
+                txtBarcodeVenta.Focus();
+            }
+        }
+
+        private void BtnQuitar_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgCarrito.SelectedItem is Producto p) { carrito.Remove(p); CalcularTotal(); }
+        }
+
+        // COBRO
+        private void AbrirPanelCobro()
+        {
+            lblTotalCobro.Text = totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
+            gridCobro.Visibility = Visibility.Visible;
+            txtPagaCon.Focus();
         }
 
         private void FinalizarVenta()
         {
             string metodo = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Efectivo";
-
-            using (MySqlConnection conn = GetConnection())
-            {
+            using (MySqlConnection conn = GetConnection()) {
                 conn.Open();
-                using (MySqlTransaction trans = conn.BeginTransaction())
-                {
-                    try
-                    {
+                using (MySqlTransaction trans = conn.BeginTransaction()) {
+                    try {
                         MySqlCommand cmdVenta = new MySqlCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago) VALUES (@t, @c, @m)", conn, trans);
                         cmdVenta.Parameters.AddWithValue("@t", totalVenta);
                         cmdVenta.Parameters.AddWithValue("@c", carrito.Count);
@@ -158,8 +209,7 @@ namespace KioscoApp
                         cmdVenta.ExecuteNonQuery();
                         long ventaId = cmdVenta.LastInsertedId;
 
-                        foreach (var p in carrito)
-                        {
+                        foreach (var p in carrito) {
                             MySqlCommand cmdDet = new MySqlCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @p, 1, @p)", conn, trans);
                             cmdDet.Parameters.AddWithValue("@id", ventaId);
                             cmdDet.Parameters.AddWithValue("@n", p.Nombre);
@@ -171,25 +221,74 @@ namespace KioscoApp
                             cmdStock.ExecuteNonQuery();
                         }
                         trans.Commit();
-                        MessageBox.Show("✓ Venta completada.");
+                        MessageBox.Show("Venta completada.");
                         carrito.Clear(); CalcularTotal();
                         gridCobro.Visibility = Visibility.Collapsed;
-                    }
-                    catch (Exception ex) { trans.Rollback(); MessageBox.Show("Error: " + ex.Message); }
+                    } catch (Exception ex) { trans.Rollback(); MessageBox.Show("Error: " + ex.Message); }
                 }
             }
         }
 
-        // ... El resto de los métodos (TextChanged, KeyDown, etc.) deben usar "using (MySqlConnection conn = GetConnection())"
+        private void TxtPagaCon_TextChanged(object sender, TextChangedEventArgs e) {
+            if (decimal.TryParse(txtPagaCon.Text, out decimal paga))
+                lblVuelto.Text = (paga - totalVenta).ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
+        }
+
+        private void TxtPagaCon_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) FinalizarVenta(); }
+        private void BtnConfirmarVenta_Click(object sender, RoutedEventArgs e) => FinalizarVenta();
+        private void BtnCancelCobro_Click(object sender, RoutedEventArgs e) => gridCobro.Visibility = Visibility.Collapsed;
+        private void GridCobro_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) gridCobro.Visibility = Visibility.Collapsed; }
+        private void CbMetodoPago_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+
+        // CARGA DE PRODUCTOS
+        private async void TxtCargaBarcode_LostFocus(object sender, RoutedEventArgs e)
+        {
+            string barcode = txtCargaBarcode.Text.Trim();
+            if (string.IsNullOrEmpty(barcode)) return;
+            try {
+                using (HttpClient client = new HttpClient()) {
+                    string url = $"https://world.openfoodfacts.org/api/v0/product/{barcode}.json";
+                    string response = await client.GetStringAsync(url);
+                    var json = JObject.Parse(response);
+                    if (json["status"]?.ToString() == "1") txtCargaNombre.Text = json["product"]?["product_name"]?.ToString() ?? "";
+                }
+            } catch { }
+        }
+
+        private void BtnGuardar_Click(object sender, RoutedEventArgs e)
+        {
+            try {
+                if (!decimal.TryParse(txtCargaPrecio.Text, out decimal precioValue)) return;
+                decimal.TryParse(txtCargaStock.Text, out decimal stockValue);
+                using (MySqlConnection conn = GetConnection()) {
+                    conn.Open();
+                    string sql = "INSERT INTO productos (codigo_barras, nombre, precio, stock) VALUES (@c, @n, @p, @s) ON DUPLICATE KEY UPDATE nombre=@n, precio=@p, stock=stock+@s";
+                    MySqlCommand cmd = new MySqlCommand(sql, conn);
+                    cmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text.Trim());
+                    cmd.Parameters.AddWithValue("@n", txtCargaNombre.Text.Trim());
+                    cmd.Parameters.AddWithValue("@p", precioValue);
+                    cmd.Parameters.AddWithValue("@s", stockValue);
+                    cmd.ExecuteNonQuery();
+                    MessageBox.Show("Producto guardado.");
+                }
+            } catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+        }
+
+        private void TxtCargaBarcode_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) txtCargaNombre.Focus(); }
+        private void BtnManualOpen_Click(object sender, RoutedEventArgs e) => gridManual.Visibility = Visibility.Visible;
+        private void BtnManualCancel_Click(object sender, RoutedEventArgs e) => gridManual.Visibility = Visibility.Collapsed;
+        private void BtnManualConfirm_Click(object sender, RoutedEventArgs e) {
+            if (decimal.TryParse(txtManualPrecio.Text, out decimal p)) { AgregarAlCarrito(txtManualNombre.Text, p); gridManual.Visibility = Visibility.Collapsed; }
+        }
+        private void DgInventario_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e) { }
     }
 
-    public class Producto
-    {
+    public class Producto {
         public int Id { get; set; }
         public string CodigoBarras { get; set; } = "";
         public string Nombre { get; set; } = "";
         public decimal Precio { get; set; }
-        public decimal Stock { get; set; } // Cambiado a decimal para quesos/pesables
+        public decimal Stock { get; set; } // Decimal para quesos
         public string Categoria { get; set; } = "General";
     }
 }
