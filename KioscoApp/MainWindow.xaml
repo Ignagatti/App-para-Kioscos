@@ -67,7 +67,18 @@
                             <DataGrid x:Name="dgCarrito" Height="350" AutoGenerateColumns="False" CanUserAddRows="False" 
                                       GridLinesVisibility="Horizontal" RowHeight="40" FontSize="13" Background="White">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*"/>
+                                    <DataGridTemplateColumn Header="Producto" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold" FontSize="14"/>
+                                                    <TextBlock Text="{Binding Cantidad, StringFormat='x{0} un.'}" 
+                                                            FontSize="11" Foreground="#757575" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    
                                     <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
                                     <DataGridTemplateColumn Width="80">
                                         <DataGridTemplateColumn.CellTemplate>
@@ -114,6 +125,38 @@
                                 
                                 <TextBlock Text="Nombre del Producto" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaNombre" Height="40" Margin="0,0,0,18"/>
+                                <TextBlock Text="Categoría" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                                <Grid x:Name="gridSeleccionCategoria" Margin="0,0,0,18">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <ComboBox x:Name="cbCargaCategoria" Grid.Column="0" Height="40" FontSize="14"
+                                            DisplayMemberPath="Nombre" SelectedValuePath="Id" Padding="10,0"/>
+                                            
+                                    <Button Content="➕" Grid.Column="1" Width="40" Height="40" Margin="5,0,0,0"
+                                            Click="BtnNuevaCategoria_Click" ToolTip="Crear nueva categoría"
+                                            Background="#2196F3" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                                </Grid>
+
+                                <Grid x:Name="gridNuevaCategoria" Visibility="Collapsed" Margin="0,0,0,18">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <TextBox x:Name="txtNuevaCategoriaNombre" Grid.Column="0" Height="40" FontSize="14"
+                                            VerticalContentAlignment="Center" Padding="5"/>
+                                            
+                                    <Button Content="✓" Grid.Column="1" Width="40" Height="40" Margin="5,0,0,0"
+                                            Click="BtnGuardarNuevaCategoria_Click" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+                                            
+                                    <Button Content="✕" Grid.Column="2" Width="40" Height="40" Margin="5,0,0,0"
+                                            Click="BtnCancelarNuevaCategoria_Click" Background="#F44336" Foreground="White" FontWeight="Bold"/>
+                                </Grid>
                                 
                                 <TextBlock Text="Precio de Venta ($ ARS)" FontWeight="Bold" Margin="0,0,0,8"/>
                                 <TextBox x:Name="txtCargaPrecio" Height="40" Margin="0,0,0,18"/>
@@ -161,24 +204,15 @@
                                 <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="150" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
                                 <DataGridTextColumn Header="Stock" Binding="{Binding Stock, StringFormat={}{0:0.###}}" Width="80"/>
-                                <DataGridTemplateColumn Header="Estado" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Ellipse Width="12" Height="12" HorizontalAlignment="Center">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
-                                                        <Setter Property="Fill" Value="#4CAF50"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Stock}" Value="0">
-                                                                <Setter Property="Fill" Value="#F44336"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Estado" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid ToolTip="{Binding Stock, StringFormat='Stock: {0}'}">
+                                            <Ellipse Width="15" Height="15" HorizontalAlignment="Center" 
+                                                    Fill="{Binding ColorEstado}"/> </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>

@@ -29,6 +29,14 @@ CREATE TABLE IF NOT EXISTS venta_detalles (
     INDEX idx_venta (venta_id)
 );
 
+CREATE TABLE IF NOT EXISTS categorias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL
+);
+
+-- Insertamos algunas categorías básicas para empezar
+INSERT INTO categorias (nombre) VALUES ('General'), ('Bebidas'), ('Golosinas'), ('Cigarrillos'), ('Librería'), ('Limpieza');
+
 -- Inserts de ejemplo
 INSERT INTO productos (codigo_barras, nombre, precio) VALUES
 ('123456789', 'Pan Integral', 25.00),
