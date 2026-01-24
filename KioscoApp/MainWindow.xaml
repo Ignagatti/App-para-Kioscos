@@ -80,9 +80,7 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
-                                    <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*"/>
-                                    <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0'}" Width="120"/>
+                                    <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='C'}" Width="120"/>
                                     <DataGridTemplateColumn Width="80">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -191,8 +189,6 @@
                                 <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="150" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="150" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='$ #,##0.00'}" Width="120"/>
-                                <DataGridTextColumn Header="Stock" Binding="{Binding Stock, StringFormat={}{0:0.###}}" Width="80"/>
                                 <DataGridTemplateColumn Header="Estado" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -202,7 +198,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Precio ($)" Binding="{Binding Precio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='$ #,##0'}" Width="120"/>
+                                <DataGridTextColumn Header="Precio ($)" Binding="{Binding Precio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='C'}" Width="120"/>
                                 <DataGridTextColumn Header="Stock" Binding="{Binding Stock, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
                             </DataGrid.Columns>
                         </DataGrid>
