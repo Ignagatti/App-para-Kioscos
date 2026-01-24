@@ -27,7 +27,7 @@ namespace KioscoApp
         private string connStrActiva = "";
         private int sesionIdActiva = 0; 
         private int montoAperturaActual = 0;
-        private int totalVenta = 0;
+        private decimal totalVenta = 0;
 
         public MainWindow()
         {
@@ -145,10 +145,9 @@ namespace KioscoApp
             catch { }
         }
 
-        private void CargarCaja() {
+        private void CargarInventario() {
             try {
-                ObservableCollection<VentaResumen> vs = new ObservableCollection<VentaResumen>();
-                int vE = 0, vO = 0;
+                inventarioCompleto.Clear();
                 using (MySqlConnection conn = GetConnection()) {
                     conn.Open();
                     string sql = @"SELECT p.id, p.codigo_barras, p.nombre, p.precio, p.stock, c.nombre as categoria_nombre 
@@ -166,15 +165,11 @@ namespace KioscoApp
                                 Stock = Convert.ToDecimal(reader["stock"]), 
                                 Categoria = reader["categoria_nombre"]?.ToString() ?? "General"
                             };
-                            listaInventario.Add(nuevoProducto);
                             inventarioCompleto.Add(nuevoProducto);
                         }
                     }
                 }
-                dgHistorialVentas.ItemsSource = vs;
-                lblCajaEfectivo.Text = "$ " + (montoAperturaActual + vE).ToString("#,##0");
-                lblCajaOtros.Text = "$ " + vO.ToString("#,##0");
-                lblCajaTotal.Text = "$ " + (vE + vO).ToString("#,##0");
+                dgInventario.ItemsSource = inventarioCompleto;
             } catch { }
         }
 
@@ -182,6 +177,15 @@ namespace KioscoApp
         {
             carrito.Add(new Producto { Nombre = nombre, Precio = precio });
             CalcularTotal();
+        }
+
+        private void CalcularTotal()
+        {
+            totalVenta = carrito.Sum(p => p.Precio);
+            if (gridCobro.Visibility == Visibility.Visible)
+            {
+                lblTotalCobro.Text = totalVenta.ToString("C", CultureInfo.CreateSpecificCulture("es-AR"));
+            }
         }
 
         private void BuscarYAgregar(string barcode)
@@ -199,8 +203,6 @@ namespace KioscoApp
                         }
                     }
                 }
-                dgHistorialCierres.ItemsSource = ses;
-                lblRecaudacionTotalHistorica.Text = "$ " + acc.ToString("#,##0");
             } catch { }
         }
 
@@ -366,6 +368,14 @@ namespace KioscoApp
                 dgInventario.ItemsSource = listaFiltrada;
             }
         }
+
+        private void LstSuggestions_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+        private void BtnNuevaCategoria_Click(object sender, RoutedEventArgs e) { }
+        private void BtnGuardarNuevaCategoria_Click(object sender, RoutedEventArgs e) { }
+        private void BtnCancelarNuevaCategoria_Click(object sender, RoutedEventArgs e) { }
+        private void BtnCerrarCaja_Click(object sender, RoutedEventArgs e) { }
+        private void BtnAbrirCaja_Click(object sender, RoutedEventArgs e) { }
+        private void BtnQuitar_Click(object sender, RoutedEventArgs e) { }
     }
 
     public class Producto {
@@ -384,5 +394,10 @@ namespace KioscoApp
         public int CantidadItems { get; set; }
         public decimal Total { get; set; }
         public string DetalleTexto { get; set; } = "";
+    }
+
+    public class Categoria {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = "";
     }
 }
