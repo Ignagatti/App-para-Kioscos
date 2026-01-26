@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS productos (
     precio REAL NOT NULL,
     stock REAL DEFAULT 0,
     categoria_id INTEGER,
+    es_por_kilo INTEGER DEFAULT 0,
+    precio_por_kilo REAL DEFAULT 0,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
@@ -46,4 +48,4 @@ CREATE TABLE IF NOT EXISTS venta_detalles (
 );
 
 -- Insertar categorías iniciales
-INSERT OR IGNORE INTO categorias (nombre) VALUES ('General'), ('Bebidas'), ('Golosinas');
+INSERT OR IGNORE INTO categorias (nombre) VALUES ('General'), ('Bebidas'), ('Golosinas'), ('Fiambres');

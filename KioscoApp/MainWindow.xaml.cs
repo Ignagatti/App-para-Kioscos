@@ -25,6 +25,10 @@ namespace KioscoApp
         private int sesionIdActiva = 0; 
         private decimal montoAperturaActual = 0;
         private decimal totalVenta = 0;
+        private string productoPesoActual = "";
+        private decimal precioPorKiloActual = 0;
+        private int productoIdActual = 0;
+        private bool esperandoPeso = false;
 
         public MainWindow()
         {
@@ -61,6 +65,47 @@ namespace KioscoApp
                 using (SqliteCommand cmd = new SqliteCommand(sql, conn))
                 {
                     cmd.ExecuteNonQuery();
+                }
+
+                // Agregar columnas nuevas si no existen
+                try {
+                    // Verificar si la columna es_por_kilo existe
+                    SqliteCommand checkCol1 = new SqliteCommand("PRAGMA table_info(productos)", conn);
+                    bool hasEsPorKilo = false;
+                    using (var reader = checkCol1.ExecuteReader()) {
+                        while (reader.Read()) {
+                            if (reader.GetString(1) == "es_por_kilo") {
+                                hasEsPorKilo = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!hasEsPorKilo) {
+                        SqliteCommand addCol1 = new SqliteCommand("ALTER TABLE productos ADD COLUMN es_por_kilo INTEGER DEFAULT 0", conn);
+                        addCol1.ExecuteNonQuery();
+                    }
+                } catch (Exception ex) { 
+                    MessageBox.Show($"Error agregando columna es_por_kilo: {ex.Message}");
+                }
+
+                try {
+                    // Verificar si la columna precio_por_kilo existe
+                    SqliteCommand checkCol2 = new SqliteCommand("PRAGMA table_info(productos)", conn);
+                    bool hasPrecioPorKilo = false;
+                    using (var reader = checkCol2.ExecuteReader()) {
+                        while (reader.Read()) {
+                            if (reader.GetString(1) == "precio_por_kilo") {
+                                hasPrecioPorKilo = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!hasPrecioPorKilo) {
+                        SqliteCommand addCol2 = new SqliteCommand("ALTER TABLE productos ADD COLUMN precio_por_kilo REAL DEFAULT 0", conn);
+                        addCol2.ExecuteNonQuery();
+                    }
+                } catch (Exception ex) { 
+                    MessageBox.Show($"Error agregando columna precio_por_kilo: {ex.Message}");
                 }
             }
         }
@@ -152,12 +197,32 @@ namespace KioscoApp
         private void BuscarYAgregar(string b) { 
             try { 
                 using (SqliteConnection conn = GetConnection()) { 
-                    SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio FROM productos WHERE codigo_barras = @c", conn); 
+                    SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio, es_por_kilo, precio_por_kilo FROM productos WHERE codigo_barras = @c", conn); 
                     cmd.Parameters.AddWithValue("@c", b); 
                     conn.Open(); 
                     using (var r = cmd.ExecuteReader()) { 
                         if (r.Read()) {
-                            carrito.Add(new Producto { Id = r.GetInt32(0), Nombre = r.GetString(1), Precio = r.GetDecimal(2) });
+                            string nombre = r.GetString(1);
+                            decimal precio = r.GetDecimal(2);
+                            bool esPorKilo = r.GetBoolean(3);
+                            decimal precioPorKilo = r.GetDecimal(4);
+
+                            if (esPorKilo)
+                            {
+                                // Mostrar panel integrado para ingresar peso
+                                productoIdActual = r.GetInt32(0);
+                                productoPesoActual = nombre;
+                                precioPorKiloActual = precioPorKilo;
+                                lblProductoPeso.Text = $"Producto: {nombre}";
+                                txtGramosPeso.Clear();
+                                gridPeso.Visibility = Visibility.Visible;
+                                txtGramosPeso.Focus();
+                                esperandoPeso = true;
+                            }
+                            else
+                            {
+                                carrito.Add(new Producto { Id = r.GetInt32(0), Nombre = nombre, Precio = precio });
+                            }
                             CalcularTotal();
                         } else { MessageBox.Show("Producto no registrado."); } 
                     } 
@@ -166,6 +231,7 @@ namespace KioscoApp
         }
 
         private void TxtBarcodeVenta_KeyDown(object sender, KeyEventArgs e) { 
+            if (esperandoPeso) return; // No procesar si estamos esperando peso
             if (e.Key == Key.Enter) { 
                 if (lstSuggestions.Visibility == Visibility.Visible && lstSuggestions.Items.Count > 0) {
                     // Seleccionar la primera sugerencia (esto dispara SelectionChanged automáticamente)
@@ -189,24 +255,29 @@ namespace KioscoApp
                     var existingStock = checkCmd.ExecuteScalar();
                     if (existingStock != null) {
                         // Actualizar
-                        SqliteCommand updateCmd = new SqliteCommand("UPDATE productos SET nombre = @n, precio = @p, stock = stock + @s, categoria_id = @cat WHERE codigo_barras = @c", conn);
+                        SqliteCommand updateCmd = new SqliteCommand("UPDATE productos SET nombre = @n, precio = @p, stock = stock + @s, categoria_id = @cat, es_por_kilo = @epk, precio_por_kilo = @ppk WHERE codigo_barras = @c", conn);
                         updateCmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text); 
                         updateCmd.Parameters.AddWithValue("@n", txtCargaNombre.Text); 
                         updateCmd.Parameters.AddWithValue("@p", decimal.Parse(txtCargaPrecio.Text)); 
                         updateCmd.Parameters.AddWithValue("@s", decimal.Parse(txtCargaStock.Text)); 
                         updateCmd.Parameters.AddWithValue("@cat", cbCargaCategoria.SelectedValue ?? 1);
+                        updateCmd.Parameters.AddWithValue("@epk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? 1 : 0);
+                        updateCmd.Parameters.AddWithValue("@ppk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? decimal.Parse(txtCargaPrecio.Text) : 0);
                         updateCmd.ExecuteNonQuery();
                     } else {
                         // Insertar
-                        SqliteCommand insertCmd = new SqliteCommand("INSERT INTO productos (codigo_barras, nombre, precio, stock, categoria_id) VALUES (@c, @n, @p, @s, @cat)", conn);
+                        SqliteCommand insertCmd = new SqliteCommand("INSERT INTO productos (codigo_barras, nombre, precio, stock, categoria_id, es_por_kilo, precio_por_kilo) VALUES (@c, @n, @p, @s, @cat, @epk, @ppk)", conn);
                         insertCmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text); 
                         insertCmd.Parameters.AddWithValue("@n", txtCargaNombre.Text); 
                         insertCmd.Parameters.AddWithValue("@p", decimal.Parse(txtCargaPrecio.Text)); 
                         insertCmd.Parameters.AddWithValue("@s", decimal.Parse(txtCargaStock.Text)); 
                         insertCmd.Parameters.AddWithValue("@cat", cbCargaCategoria.SelectedValue ?? 1);
+                        insertCmd.Parameters.AddWithValue("@epk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? 1 : 0);
+                        insertCmd.Parameters.AddWithValue("@ppk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? decimal.Parse(txtCargaPrecio.Text) : 0);
                         insertCmd.ExecuteNonQuery();
                     }
-                    MessageBox.Show("Producto Guardado."); 
+                    MessageBox.Show("Producto Guardado.");
+                    CargarInventario(); // Recargar inventario con precios actualizados
                 } 
             } catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
@@ -264,9 +335,31 @@ namespace KioscoApp
             var filtrado = inventarioCompleto.Where(p => p.Nombre.ToLower().Contains(filtro) || p.CodigoBarras.Contains(filtro)).ToList();
             dgInventario.ItemsSource = filtrado;
         }
-        private void DgInventario_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e) { /* Update DB */ }
         private void DgInventario_KeyDown(object sender, KeyEventArgs e) { }
-        private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) { }
+        private void DataGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) {
+            if (e.ClickCount == 2) {
+                var dataGrid = sender as DataGrid;
+                if (dataGrid?.SelectedItem is Producto producto) {
+                    var result = MessageBox.Show($"¿Está seguro de eliminar el producto '{producto.Nombre}'?", 
+                                               "Confirmar eliminación", 
+                                               MessageBoxButton.YesNo, 
+                                               MessageBoxImage.Warning);
+                    if (result == MessageBoxResult.Yes) {
+                        try {
+                            using (SqliteConnection conn = GetConnection()) {
+                                conn.Open();
+                                SqliteCommand cmd = new SqliteCommand("DELETE FROM productos WHERE id = @id", conn);
+                                cmd.Parameters.AddWithValue("@id", producto.Id);
+                                cmd.ExecuteNonQuery();
+                                CargarInventario(); // Recargar la lista
+                            }
+                        } catch (Exception ex) {
+                            MessageBox.Show($"Error al eliminar: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+                    }
+                }
+            }
+        }
         private void BtnCerrarCaja_Click(object sender, RoutedEventArgs e) {
             try {
                 using (SqliteConnection conn = GetConnection()) {
@@ -299,7 +392,7 @@ namespace KioscoApp
             try {
                 using (SqliteConnection conn = GetConnection()) {
                     conn.Open();
-                    SqliteCommand cmd = new SqliteCommand("SELECT p.id, p.codigo_barras, p.nombre, COALESCE(c.nombre, 'Sin Categoría') as categoria, p.precio, p.stock FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id", conn);
+                    SqliteCommand cmd = new SqliteCommand("SELECT p.id, p.codigo_barras, p.nombre, COALESCE(c.nombre, 'Sin Categoría') as categoria, p.precio, p.stock, p.es_por_kilo, p.precio_por_kilo, p.categoria_id FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id", conn);
                     using (var r = cmd.ExecuteReader()) {
                         inventarioCompleto.Clear();
                         while (r.Read()) {
@@ -309,11 +402,15 @@ namespace KioscoApp
                                 Nombre = r.GetString(2),
                                 Categoria = r.GetString(3),
                                 Precio = r.GetDecimal(4),
-                                Stock = r.GetDecimal(5)
+                                Stock = r.GetDecimal(5),
+                                EsPorKilo = r.GetBoolean(6),
+                                PrecioPorKilo = r.GetDecimal(7),
+                                CategoriaId = r.GetInt32(8)
                             });
                         }
                     }
                     dgInventario.ItemsSource = inventarioCompleto;
+                    dgInventario.Items.Refresh();
                 }
             } catch { }
         }
@@ -379,25 +476,46 @@ namespace KioscoApp
         }
         private void LstSuggestions_SelectionChanged(object sender, SelectionChangedEventArgs e) {
             if (lstSuggestions.SelectedItem is Producto p) {
-                carrito.Add(p);
+                if (p.EsPorKilo)
+                {
+                    // Mostrar panel integrado para ingresar peso
+                    productoIdActual = p.Id;
+                    productoPesoActual = p.Nombre;
+                    precioPorKiloActual = p.PrecioPorKilo;
+                    lblProductoPeso.Text = $"Producto: {p.Nombre}";
+                    txtGramosPeso.Clear();
+                    gridPeso.Visibility = Visibility.Visible;
+                    txtGramosPeso.Focus();
+                    esperandoPeso = true;
+                }
+                else
+                {
+                    carrito.Add(p);
+                }
                 CalcularTotal();
                 txtBarcodeVenta.Clear();
                 lstSuggestions.Visibility = Visibility.Collapsed;
             }
         }
-        private void TxtBarcodeVenta_TextChanged(object sender, TextChangedEventArgs e) {
+        private void ActualizarSugerencias() {
             string texto = txtBarcodeVenta.Text.Trim();
             if (!string.IsNullOrEmpty(texto) && !long.TryParse(texto, out _)) {
                 // Buscar por nombre
                 try {
                     using (SqliteConnection conn = GetConnection()) {
                         conn.Open();
-                        SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio FROM productos WHERE nombre LIKE @n LIMIT 10", conn);
+                        SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio, es_por_kilo, precio_por_kilo FROM productos WHERE nombre LIKE @n LIMIT 10", conn);
                         cmd.Parameters.AddWithValue("@n", "%" + texto + "%");
                         var sugerencias = new List<Producto>();
                         using (var r = cmd.ExecuteReader()) {
                             while (r.Read()) {
-                                sugerencias.Add(new Producto { Id = r.GetInt32(0), Nombre = r.GetString(1), Precio = r.GetDecimal(2) });
+                                sugerencias.Add(new Producto { 
+                                    Id = r.GetInt32(0), 
+                                    Nombre = r.GetString(1), 
+                                    Precio = r.GetDecimal(2),
+                                    EsPorKilo = r.GetBoolean(3),
+                                    PrecioPorKilo = r.GetDecimal(4)
+                                });
                             }
                         }
                         lstSuggestions.ItemsSource = sugerencias;
@@ -408,6 +526,10 @@ namespace KioscoApp
                 lstSuggestions.Visibility = Visibility.Collapsed;
             }
         }
+
+        private void TxtBarcodeVenta_TextChanged(object sender, TextChangedEventArgs e) {
+            ActualizarSugerencias();
+        }
         private void BtnNuevaCategoria_Click(object sender, RoutedEventArgs e) { gridNuevaCategoria.Visibility = Visibility.Visible; }
         private void BtnGuardarNuevaCategoria_Click(object sender, RoutedEventArgs e) {
             // Asumir que hay un TextBox txtNuevaCategoria en XAML
@@ -415,6 +537,143 @@ namespace KioscoApp
             MessageBox.Show("Funcionalidad no implementada.");
         }
         private void BtnCancelarNuevaCategoria_Click(object sender, RoutedEventArgs e) { gridNuevaCategoria.Visibility = Visibility.Collapsed; }
+
+        private void TxtGramosPeso_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (!char.IsDigit(e.Text, 0) && e.Text != "." && e.Text != ",")
+            {
+                e.Handled = true;
+            }
+        }
+
+        private void BtnAceptarPeso_Click(object sender, RoutedEventArgs e)
+        {
+            if (decimal.TryParse(txtGramosPeso.Text.Replace(",", "."), out decimal gramos) && gramos > 0)
+            {
+                decimal precioCalculado = (gramos / 1000) * precioPorKiloActual;
+                carrito.Add(new Producto { 
+                    Id = productoIdActual,
+                    Nombre = $"{productoPesoActual} ({gramos}g)", 
+                    Precio = Math.Round(precioCalculado, 2),
+                    Peso = gramos,
+                    EsPorKilo = true,
+                    PrecioPorKilo = precioPorKiloActual
+                });
+                CalcularTotal();
+                gridPeso.Visibility = Visibility.Collapsed;
+                esperandoPeso = false;
+                txtBarcodeVenta.Clear();
+                txtBarcodeVenta.Focus();
+            }
+            else
+            {
+                MessageBox.Show("Ingrese un peso válido en gramos.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void BtnCancelarPeso_Click(object sender, RoutedEventArgs e)
+        {
+            gridPeso.Visibility = Visibility.Collapsed;
+            esperandoPeso = false;
+            txtBarcodeVenta.Clear();
+            txtBarcodeVenta.Focus();
+        }
+
+        private void GridPeso_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                BtnAceptarPeso_Click(null, null);
+            }
+            else if (e.Key == Key.Escape)
+            {
+                BtnCancelarPeso_Click(null, null);
+            }
+        }
+
+        private void DgInventario_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                var producto = e.Row.Item as Producto;
+                if (producto != null)
+                {
+                    try
+                    {
+                        using (SqliteConnection conn = GetConnection())
+                        {
+                            conn.Open();
+                            SqliteCommand cmd = new SqliteCommand("UPDATE productos SET nombre = @n, precio = @p, stock = @s, es_por_kilo = @epk, precio_por_kilo = @ppk WHERE id = @id", conn);
+                            cmd.Parameters.AddWithValue("@id", producto.Id);
+                            cmd.Parameters.AddWithValue("@n", producto.Nombre);
+                            cmd.Parameters.AddWithValue("@p", producto.Precio);
+                            cmd.Parameters.AddWithValue("@s", producto.Stock);
+                            cmd.Parameters.AddWithValue("@epk", producto.EsPorKilo);
+                            cmd.Parameters.AddWithValue("@ppk", producto.PrecioPorKilo);
+                            cmd.ExecuteNonQuery();
+                        }
+                        // Recargar inventario para reflejar cambios en sugerencias
+                        CargarInventario();
+                        // Actualizar sugerencias si hay texto en búsqueda
+                        if (!string.IsNullOrEmpty(txtBarcodeVenta.Text.Trim()))
+                        {
+                            ActualizarSugerencias();
+                        }
+                        // Actualizar precios en el carrito si el producto editado está ahí
+                        foreach (var item in carrito)
+                        {
+                            if (item.Id == producto.Id)
+                            {
+                                if (item.EsPorKilo && item.Peso > 0)
+                                {
+                                    // Recalcular precio basado en nuevo precio por kilo
+                                    item.PrecioPorKilo = producto.PrecioPorKilo;
+                                    item.Precio = Math.Round((producto.PrecioPorKilo * item.Peso) / 1000, 2);
+                                }
+                                else
+                                {
+                                    item.Precio = producto.Precio;
+                                    item.PrecioPorKilo = producto.PrecioPorKilo;
+                                }
+                            }
+                        }
+                        CalcularTotal();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Error al guardar cambios: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+
+        private void BtnEliminarProducto_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is int id)
+            {
+                try
+                {
+                    using (SqliteConnection conn = GetConnection())
+                    {
+                        conn.Open();
+                        SqliteCommand cmd = new SqliteCommand("DELETE FROM productos WHERE id = @id", conn);
+                        cmd.Parameters.AddWithValue("@id", id);
+                        cmd.ExecuteNonQuery();
+                    }
+                    CargarInventario();
+                    // Actualizar sugerencias si hay texto en búsqueda
+                    if (!string.IsNullOrEmpty(txtBarcodeVenta.Text.Trim()))
+                    {
+                        ActualizarSugerencias();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
     }
 
     public class Producto {
@@ -424,5 +683,21 @@ namespace KioscoApp
         public decimal Precio { get; set; }
         public decimal Stock { get; set; }
         public string Categoria { get; set; } = "";
+        public bool EsPorKilo { get; set; } = false;
+        public decimal PrecioPorKilo { get; set; } = 0;
+        public int CategoriaId { get; set; }
+        public decimal Peso { get; set; } = 0; // Para productos por kilo en carrito
+
+        public decimal PrecioEfectivo
+        {
+            get => EsPorKilo ? PrecioPorKilo : Precio;
+            set
+            {
+                if (EsPorKilo)
+                    PrecioPorKilo = value;
+                else
+                    Precio = value;
+            }
+        }
     }
 }
