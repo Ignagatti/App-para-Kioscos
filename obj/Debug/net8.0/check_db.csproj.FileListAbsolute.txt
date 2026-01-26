@@ -1,0 +1,6 @@
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0\check_db.csproj.AssemblyReference.cache
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0\check_db.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0\check_db.AssemblyInfoInputs.cache
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0\check_db.AssemblyInfo.cs
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0\check_db.csproj.CoreCompileInputs.cache
+C:\Users\Usuario\OneDrive\KioscoApp\obj\Debug\net8.0\check_db.sourcelink.json
