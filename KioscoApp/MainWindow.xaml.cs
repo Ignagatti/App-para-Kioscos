@@ -54,8 +54,8 @@ namespace KioscoApp
         private void InicializarBaseDatos()
         {
             // Crear la carpeta si no existe
-            string dbDir = Path.GetDirectoryName(connStrActiva.Replace("Data Source=", ""));
-            if (!Directory.Exists(dbDir)) Directory.CreateDirectory(dbDir);
+            string? dbDir = Path.GetDirectoryName(connStrActiva.Replace("Data Source=", ""));
+            if (dbDir != null && !Directory.Exists(dbDir)) Directory.CreateDirectory(dbDir);
 
             // Ejecutar el script SQL para crear tablas
             using (SqliteConnection conn = new SqliteConnection(connStrActiva))
@@ -162,7 +162,7 @@ namespace KioscoApp
                         cV.Parameters.AddWithValue("@c", carrito.Count); 
                         cV.Parameters.AddWithValue("@m", m); 
                         cV.Parameters.AddWithValue("@sid", sesionIdActiva);
-                        long idVenta = (long)cV.ExecuteScalar();
+                        long idVenta = Convert.ToInt64(cV.ExecuteScalar());
 
                         foreach (var p in carrito) {
                             SqliteCommand cD = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @p, 1, @p)", conn, t);
@@ -302,7 +302,7 @@ namespace KioscoApp
                         conn.Open();
                         SqliteCommand cmd = new SqliteCommand("INSERT INTO sesiones_caja (monto_inicial, estado) VALUES (@m, 'ABIERTA'); SELECT last_insert_rowid();", conn);
                         cmd.Parameters.AddWithValue("@m", m);
-                        sesionIdActiva = (int)(long)cmd.ExecuteScalar();
+                        sesionIdActiva = Convert.ToInt32(cmd.ExecuteScalar());
                         montoAperturaActual = m;
                         lblCajaEfectivo.Text = m.ToString("C");
                         lblCajaTotal.Text = "$ 0";
@@ -329,7 +329,7 @@ namespace KioscoApp
         private void TxtPagaCon_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) FinalizarVenta(); }
         private void GridCobro_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) gridCobro.Visibility = Visibility.Collapsed; }
         private void TxtCargaBarcode_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) txtCargaNombre.Focus(); }
-        private async void TxtCargaBarcode_LostFocus(object sender, RoutedEventArgs e) { /* Lógica API OpenFoodFacts */ }
+        private void TxtCargaBarcode_LostFocus(object sender, RoutedEventArgs e) { /* Lógica API OpenFoodFacts */ }
         private void TxtBuscarInventario_TextChanged(object sender, TextChangedEventArgs e) {
             string filtro = txtBuscarInventario.Text.ToLower();
             var filtrado = inventarioCompleto.Where(p => p.Nombre.ToLower().Contains(filtro) || p.CodigoBarras.Contains(filtro)).ToList();
@@ -583,11 +583,11 @@ namespace KioscoApp
         {
             if (e.Key == Key.Enter)
             {
-                BtnAceptarPeso_Click(null, null);
+                BtnAceptarPeso_Click(null!, null!);
             }
             else if (e.Key == Key.Escape)
             {
-                BtnCancelarPeso_Click(null, null);
+                BtnCancelarPeso_Click(null!, null!);
             }
         }
 
@@ -595,8 +595,7 @@ namespace KioscoApp
         {
             if (e.EditAction == DataGridEditAction.Commit)
             {
-                var producto = e.Row.Item as Producto;
-                if (producto != null)
+                if (e.Row.Item is Producto producto)
                 {
                     try
                     {

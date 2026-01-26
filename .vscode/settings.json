@@ -6,9 +6,9 @@
         "**/bin": false,
         "**/obj": false
     },
-    "csharp.referencesCodeLens.enabled": true,
     "omnisharp.projectLoadTimeout": 120,
     "omnisharp.analyzeOpenDocumentsOnly": false,
     "omnisharp.useModernNet": true,
-    "omnisharp.enableMsBuildLoadProjectsOnDemand": false
+    "omnisharp.enableMsBuildLoadProjectsOnDemand": false,
+    "dotnet.codeLens.enableReferencesCodeLens": true
 }
