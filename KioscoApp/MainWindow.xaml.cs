@@ -414,41 +414,85 @@ namespace KioscoApp
                 }
             } catch { }
         }
-        private void CargarCaja() {
-            try {
-                using (SqliteConnection conn = GetConnection()) {
+        private void CargarCaja()
+        {
+            try
+            {
+                using (SqliteConnection conn = GetConnection())
+                {
                     conn.Open();
-                    // Calcular totales de ventas
-                    SqliteCommand cmdVentas = new SqliteCommand("SELECT SUM(CASE WHEN metodo_pago = 'Efectivo' THEN total ELSE 0 END) as efectivo, SUM(CASE WHEN metodo_pago != 'Efectivo' THEN total ELSE 0 END) as otros FROM ventas WHERE sesion_id = @sid", conn);
+
+                    // 1. Calcular totales (Efectivo vs Otros)
+                    SqliteCommand cmdVentas = new SqliteCommand(@"
+                        SELECT 
+                            SUM(CASE WHEN metodo_pago = 'Efectivo' THEN total ELSE 0 END) as efectivo, 
+                            SUM(CASE WHEN metodo_pago != 'Efectivo' THEN total ELSE 0 END) as otros 
+                        FROM ventas 
+                        WHERE sesion_id = @sid", conn);
+                    
                     cmdVentas.Parameters.AddWithValue("@sid", sesionIdActiva);
+                    
                     decimal efectivo = 0, otros = 0;
-                    using (var r = cmdVentas.ExecuteReader()) {
-                        if (r.Read()) {
+                    using (var r = cmdVentas.ExecuteReader())
+                    {
+                        if (r.Read())
+                        {
                             efectivo = r.IsDBNull(0) ? 0 : r.GetDecimal(0);
                             otros = r.IsDBNull(1) ? 0 : r.GetDecimal(1);
                         }
                     }
+                    
                     lblCajaEfectivo.Text = (montoAperturaActual + efectivo).ToString("C");
                     lblCajaOtros.Text = otros.ToString("C");
                     lblCajaTotal.Text = (efectivo + otros).ToString("C");
 
-                    SqliteCommand cmd = new SqliteCommand("SELECT id, total, fecha, metodo_pago FROM ventas WHERE sesion_id = @sid ORDER BY fecha DESC", conn);
+                    // 2. Traer el historial CON DETALLE (Adaptado para SQLite)
+                    string sql = @"
+                        SELECT 
+                            v.id, 
+                            v.fecha, 
+                            v.metodo_pago, 
+                            v.total,
+                            GROUP_CONCAT(
+                                vd.nombre || ' (' || 
+                                CASE 
+                                    WHEN vd.cantidad < 1 THEN CAST((vd.cantidad * 1000) AS INT) || ' gr'
+                                    ELSE CAST(vd.cantidad AS INT) || ' un.'
+                                END || ')', 
+                                ', '
+                            ) as detalle_completo
+                        FROM ventas v
+                        LEFT JOIN venta_detalles vd ON v.id = vd.venta_id
+                        WHERE v.sesion_id = @sid
+                        GROUP BY v.id
+                        ORDER BY v.fecha DESC";
+
+                    SqliteCommand cmd = new SqliteCommand(sql, conn);
                     cmd.Parameters.AddWithValue("@sid", sesionIdActiva);
-                    var ventas = new List<dynamic>();
-                    using (var r = cmd.ExecuteReader()) {
-                        while (r.Read()) {
-                            ventas.Add(new {
+
+                    var listaVentas = new List<VentaResumen>();
+                    
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            listaVentas.Add(new VentaResumen
+                            {
                                 Id = r.GetInt32(0),
-                                Total = r.GetDecimal(1),
-                                Fecha = r.GetDateTime(2),
-                                MetodoPago = r.GetString(3),
-                                DetalleTexto = "Venta #" + r.GetInt32(0)
+                                Fecha = r.GetDateTime(1),
+                                MetodoPago = r.GetString(2),
+                                Total = r.GetDecimal(3),
+                                DetalleTexto = r.IsDBNull(4) ? "Sin detalle" : r.GetString(4)
                             });
                         }
                     }
-                    dgHistorialVentas.ItemsSource = ventas;
+                    dgHistorialVentas.ItemsSource = listaVentas;
                 }
-            } catch { }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error cargando caja: " + ex.Message);
+            }
         }
         private void CargarReportes() {
             try {
@@ -531,10 +575,53 @@ namespace KioscoApp
             ActualizarSugerencias();
         }
         private void BtnNuevaCategoria_Click(object sender, RoutedEventArgs e) { gridNuevaCategoria.Visibility = Visibility.Visible; }
-        private void BtnGuardarNuevaCategoria_Click(object sender, RoutedEventArgs e) {
-            // Asumir que hay un TextBox txtNuevaCategoria en XAML
-            // Si no, implementar según el XAML
-            MessageBox.Show("Funcionalidad no implementada.");
+        private void BtnGuardarNuevaCategoria_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. Validar que haya escrito algo (usamos el nombre del TextBox del XAML)
+            string nombreCategoria = txtNuevaCategoriaNombre.Text.Trim();
+            
+            if (string.IsNullOrEmpty(nombreCategoria))
+            {
+                MessageBox.Show("Por favor, escribí un nombre para la categoría.", "Atención", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+
+                    // 2. Verificar si ya existe para no duplicar
+                    SqliteCommand cmdCheck = new SqliteCommand("SELECT COUNT(*) FROM categorias WHERE nombre = @n", conn);
+                    cmdCheck.Parameters.AddWithValue("@n", nombreCategoria);
+                    long count = (long)cmdCheck.ExecuteScalar();
+
+                    if (count > 0)
+                    {
+                        MessageBox.Show("¡Esa categoría ya existe!", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    // 3. Insertar la nueva categoría
+                    SqliteCommand cmdInsert = new SqliteCommand("INSERT INTO categorias (nombre) VALUES (@n)", conn);
+                    cmdInsert.Parameters.AddWithValue("@n", nombreCategoria);
+                    cmdInsert.ExecuteNonQuery();
+                }
+
+                // 4. Feedback y limpieza
+                MessageBox.Show($"Categoría '{nombreCategoria}' creada exitosamente.");
+                
+                txtNuevaCategoriaNombre.Clear(); // Limpiar el campo
+                gridNuevaCategoria.Visibility = Visibility.Collapsed; // Ocultar el panel de "Nueva"
+                
+                // 5. IMPORTANTE: Recargar el ComboBox para ver la nueva categoría
+                CargarCategorias(); 
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error al crear categoría: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         private void BtnCancelarNuevaCategoria_Click(object sender, RoutedEventArgs e) { gridNuevaCategoria.Visibility = Visibility.Collapsed; }
 
@@ -699,4 +786,12 @@ namespace KioscoApp
             }
         }
     }
+    public class VentaResumen
+{
+    public int Id { get; set; }
+    public DateTime Fecha { get; set; }
+    public string MetodoPago { get; set; } = "";
+    public decimal Total { get; set; }
+    public string DetalleTexto { get; set; } = "";
+}
 }
