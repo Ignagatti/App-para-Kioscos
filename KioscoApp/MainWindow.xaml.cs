@@ -277,6 +277,15 @@ namespace KioscoApp
                         insertCmd.ExecuteNonQuery();
                     }
                     MessageBox.Show("Producto Guardado.");
+                    // Limpiar campos después de guardar
+                    txtCargaBarcode.Clear();
+                    txtCargaNombre.Clear();
+                    txtCargaPrecio.Clear();
+                    txtCargaStock.Text = "0";
+                    cbCargaCategoria.SelectedIndex = 0;
+                    lblCargaStatus.Text = "Listo";
+                    lblCargaStatus.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102)); // Gris
+                    txtCargaBarcode.Focus();
                     CargarInventario(); // Recargar inventario con precios actualizados
                 } 
             } catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
@@ -329,7 +338,42 @@ namespace KioscoApp
         private void TxtPagaCon_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) FinalizarVenta(); }
         private void GridCobro_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) gridCobro.Visibility = Visibility.Collapsed; }
         private void TxtCargaBarcode_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) txtCargaNombre.Focus(); }
-        private void TxtCargaBarcode_LostFocus(object sender, RoutedEventArgs e) { /* Lógica API OpenFoodFacts */ }
+        private async void TxtCargaBarcode_LostFocus(object sender, RoutedEventArgs e) {
+            string codigo = txtCargaBarcode.Text.Trim();
+            if (string.IsNullOrEmpty(codigo)) return;
+
+            try {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(5);
+                    string url = $"https://world.openfoodfacts.org/api/v0/product/{codigo}.json";
+                    HttpResponseMessage response = await client.GetAsync(url);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string json = await response.Content.ReadAsStringAsync();
+                        JObject data = JObject.Parse(json);
+                        
+                        if (data["product"] != null)
+                        {
+                            string nombre = data["product"]["product_name"]?.ToString() ?? data["product"]["generic_name"]?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(nombre))
+                            {
+                                txtCargaNombre.Text = nombre;
+                                lblCargaStatus.Text = "✓ Producto encontrado";
+                                lblCargaStatus.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Verde
+                                return;
+                            }
+                        }
+                    }
+                    lblCargaStatus.Text = "⚠ Producto no encontrado en BD internacional";
+                    lblCargaStatus.Foreground = new SolidColorBrush(Color.FromRgb(255, 152, 0)); // Naranja
+                }
+            } catch (Exception ex) {
+                lblCargaStatus.Text = "❌ Error: " + ex.Message;
+                lblCargaStatus.Foreground = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // Rojo
+            }
+        }
         private void TxtBuscarInventario_TextChanged(object sender, TextChangedEventArgs e) {
             string filtro = txtBuscarInventario.Text.ToLower();
             var filtrado = inventarioCompleto.Where(p => p.Nombre.ToLower().Contains(filtro) || p.CodigoBarras.Contains(filtro)).ToList();
