@@ -31,7 +31,7 @@
 
     <Grid>
         <TabControl x:Name="MainTabs" Padding="0" Margin="0">
-            <TabItem Header="VENTA (F1)" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
+            <TabItem Header="VENTA" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
                 <Grid Margin="20" Background="#FFFFFF">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -199,13 +199,35 @@
                             </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Precio ($)" Binding="{Binding PrecioEfectivo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='C'}" Width="120"/>
                                 <DataGridTextColumn Header="Stock" Binding="{Binding Stock, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
-                                <DataGridTemplateColumn Header="Acciones" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Button Content="Eliminar" MouseDoubleClick="BtnEliminarProducto_Click" Tag="{Binding Id}" Background="#F44336" Foreground="White" FontSize="12" Padding="5,2"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Acciones" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            
+                                            <Button Content="+" Background="#4CAF50" Foreground="White" 
+                                                    Width="30" Height="30" Margin="0,0,5,0"
+                                                    Click="BtnSumarStock_Click" Tag="{Binding Id}"
+                                                    ToolTip="Ingreso de Mercadería" Cursor="Hand">
+                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                                            </Button>
+
+                                            <Button Content="-" Background="#FF9800" Foreground="White" 
+                                                    Width="30" Height="30" Margin="0,0,5,0"
+                                                    Click="BtnRestarStock_Click" Tag="{Binding Id}"
+                                                    ToolTip="Ajuste / Pérdida / Consumo Propio" Cursor="Hand" FontWeight="Bold">
+                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                                            </Button>
+
+                                            <Button Content="Eliminar" Click="BtnEliminarProducto_Click" Tag="{Binding Id}" 
+                                                    Background="#F44336" Foreground="White" 
+                                                    FontSize="12" Padding="5,2" Height="30" Cursor="Hand">
+                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                                            </Button>
+
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Border>
@@ -370,6 +392,86 @@
                             </Style>
                         </Button.Resources>
                     </Button>
+                </Grid>
+            </Border>
+
+        </Grid>
+        
+        <Grid x:Name="gridStockInput" Visibility="Collapsed" Panel.ZIndex="1000">
+            <Border Background="Black" Opacity="0.5" MouseDown="BtnCancelarStock_Click"/>
+            
+            <Border Background="White" Width="350" CornerRadius="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+                </Border.Effect>
+                
+                        <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock x:Name="lblTituloStock" Text="📦 Ingreso de Mercadería" FontSize="18" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center"/>
+                    
+                    <TextBlock x:Name="lblNombreProductoStock" Grid.Row="1" Text="Producto: ..." Margin="0,10,0,15" HorizontalAlignment="Center" Foreground="#666"/>
+                    
+                    <StackPanel Grid.Row="2">
+                        <TextBlock x:Name="lblTextoCantidad" Text="Cantidad a sumar:" FontSize="12" Foreground="#888" Margin="0,0,0,5"/>
+                        <TextBox x:Name="txtCantidadStock" FontSize="20" Padding="10" TextAlignment="Center" 
+                                PreviewTextInput="TxtGramosPeso_PreviewTextInput" 
+                                KeyDown="TxtCantidadStock_KeyDown"/>
+                    </StackPanel>
+                    
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
+                        <Button Content="Cancelar" Click="BtnCancelarStock_Click" Width="100" Height="35" Background="#EEE" Foreground="#555" Margin="0,0,10,0" BorderThickness="0">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                        </Button>
+                        <Button Content="Confirmar" Click="BtnConfirmarStock_Click" Width="100" Height="35" Background="#4CAF50" Foreground="White" BorderThickness="0">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="gridConfirmDelete" Visibility="Collapsed" Panel.ZIndex="1001">
+            <Border Background="Black" Opacity="0.5" MouseDown="BtnCancelarEliminar_Click"/>
+            
+            <Border Background="White" Width="380" CornerRadius="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+                </Border.Effect>
+                
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Text="🗑️" FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    
+                    <TextBlock Text="¿Eliminar Producto?" FontSize="20" FontWeight="Bold" Foreground="#D32F2F" HorizontalAlignment="Center" Grid.Row="1"/>
+                    
+                    <TextBlock x:Name="lblMensajeEliminar" Grid.Row="2" 
+                            Text="Se borrará 'Queso' permanentemente." 
+                            TextWrapping="Wrap" TextAlignment="Center" 
+                            Margin="0,15,0,20" FontSize="14" Foreground="#555"/>
+                    
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Cancelar" Click="BtnCancelarEliminar_Click" 
+                                Width="100" Height="35" Background="#EEE" Foreground="#333" Margin="0,0,15,0" BorderThickness="0" Cursor="Hand">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                        </Button>
+                        
+                        <Button Content="¡Sí, Borrar!" Click="BtnConfirmarEliminar_Click" 
+                                Width="120" Height="35" Background="#D32F2F" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="Bold">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

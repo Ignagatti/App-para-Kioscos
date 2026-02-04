@@ -29,6 +29,7 @@ namespace KioscoApp
         private decimal precioPorKiloActual = 0;
         private int productoIdActual = 0;
         private bool esperandoPeso = false;
+        private decimal stockActualProducto = 0;
 
         public MainWindow()
         {
@@ -152,11 +153,45 @@ namespace KioscoApp
 
         private void FinalizarVenta() {
             if (carrito.Count == 0) return;
-            string m = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Efectivo";
+
+            // --- PASO 1: VALIDACIÓN DE STOCK ---
+            // Agrupamos para saber cuánto necesitamos de cada producto (por si escaneaste 3 Cocas iguales)
+            var productosRequeridos = carrito
+                .GroupBy(p => p.Id)
+                .Select(g => new { Id = g.Key, CantidadRequerida = g.Count() })
+                .ToList();
+
             using (SqliteConnection conn = GetConnection()) {
                 conn.Open();
+
+                // Revisamos producto por producto si hay stock suficiente
+                foreach (var item in productosRequeridos) {
+                    // Ignoramos productos que no estén en BD (Id 0 o manuales sin control)
+                    if (item.Id <= 0) continue;
+
+                    SqliteCommand cmdCheck = new SqliteCommand("SELECT nombre, stock FROM productos WHERE id = @id", conn);
+                    cmdCheck.Parameters.AddWithValue("@id", item.Id);
+
+                    using (var reader = cmdCheck.ExecuteReader()) {
+                        if (reader.Read()) {
+                            string nombre = reader.GetString(0);
+                            decimal stockActual = reader.GetDecimal(1);
+
+                            // Si lo que tengo es MENOR a lo que quiero vender... ¡ERROR!
+                            if (stockActual < item.CantidadRequerida) {
+                                MostrarAlerta($"¡No hay suficiente stock de '{nombre}'!\n\nStock actual: {stockActual}\nIntentás vender: {item.CantidadRequerida}\n\nLa venta fue cancelada.");
+                                return; // <--- ESTO ES LA CLAVE: Corta la función y no vende nada.
+                            }
+                        }
+                    }
+                }
+            
+                // --- PASO 2: SI LLEGAMOS ACÁ, HAY STOCK. PROCEDEMOS A VENDER ---
+                string m = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Efectivo";
+                
                 using (SqliteTransaction t = conn.BeginTransaction()) {
                     try {
+                        // 1. Crear la Venta (Cabecera)
                         SqliteCommand cV = new SqliteCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id) VALUES (@t, @c, @m, @sid); SELECT last_insert_rowid();", conn, t);
                         cV.Parameters.AddWithValue("@t", totalVenta); 
                         cV.Parameters.AddWithValue("@c", carrito.Count); 
@@ -164,26 +199,41 @@ namespace KioscoApp
                         cV.Parameters.AddWithValue("@sid", sesionIdActiva);
                         long idVenta = Convert.ToInt64(cV.ExecuteScalar());
 
+                        // 2. Guardar Detalles y Descontar Stock
                         foreach (var p in carrito) {
+                            // Detalle
                             SqliteCommand cD = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @p, 1, @p)", conn, t);
                             cD.Parameters.AddWithValue("@id", idVenta); 
                             cD.Parameters.AddWithValue("@n", p.Nombre); 
                             cD.Parameters.AddWithValue("@p", p.Precio); 
                             cD.ExecuteNonQuery();
 
+                            // Descuento de Stock
                             if (p.Id > 0) {
                                 SqliteCommand cU = new SqliteCommand("UPDATE productos SET stock = stock - 1 WHERE id = @pid", conn, t);
                                 cU.Parameters.AddWithValue("@pid", p.Id);
                                 cU.ExecuteNonQuery();
                             }
                         }
-                        t.Commit(); 
-                        carrito.Clear(); CalcularTotal(); 
+                        t.Commit(); // Confirmar cambios en BD
+                        
+                        // 3. Limpieza de interfaz
+                        carrito.Clear(); 
+                        CalcularTotal(); 
                         gridCobro.Visibility = Visibility.Collapsed; 
-                        txtBarcodeVenta.Clear(); txtBarcodeVenta.Focus();
-                        // Actualizar labels de caja
+                        txtBarcodeVenta.Clear(); 
+                        txtBarcodeVenta.Focus();
+                        
+                        // Actualizar cajita de ventas
                         CargarCaja();
-                    } catch (Exception ex) { t.Rollback(); MessageBox.Show(ex.Message); }
+                        
+                        // Feedback opcional (podrías usar MostrarAlerta si querés avisar que se vendió)
+                        // MessageBox.Show("Venta registrada"); 
+                        
+                    } catch (Exception ex) { 
+                        t.Rollback(); // Si falla algo, deshacemos todo
+                        MostrarAlerta("Error al procesar venta: " + ex.Message); 
+                    }
                 }
             }
         }
@@ -197,37 +247,56 @@ namespace KioscoApp
         private void BuscarYAgregar(string b) { 
             try { 
                 using (SqliteConnection conn = GetConnection()) { 
-                    SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio, es_por_kilo, precio_por_kilo FROM productos WHERE codigo_barras = @c", conn); 
+                    // 1. AGREGAMOS 'stock' a la consulta SQL
+                    SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio, es_por_kilo, precio_por_kilo, stock FROM productos WHERE codigo_barras = @c", conn); 
                     cmd.Parameters.AddWithValue("@c", b); 
                     conn.Open(); 
                     using (var r = cmd.ExecuteReader()) { 
                         if (r.Read()) {
+                            int id = r.GetInt32(0);
                             string nombre = r.GetString(1);
                             decimal precio = r.GetDecimal(2);
                             bool esPorKilo = r.GetBoolean(3);
                             decimal precioPorKilo = r.GetDecimal(4);
+                            decimal stock = r.GetDecimal(5); // Leemos el stock de la BD
 
-                            if (esPorKilo)
-                            {
-                                // Mostrar panel integrado para ingresar peso
-                                productoIdActual = r.GetInt32(0);
+                            // --- VALIDACIÓN DE STOCK ---
+                            // Contamos cuánto ya tenemos en el carrito de este producto
+                            decimal cantidadEnCarrito = carrito.Where(p => p.Id == id).Sum(p => esPorKilo ? p.Peso / 1000 : 1);
+
+                            // Si NO es por kilo (es por unidad) y nos pasamos... ALERTA
+                            if (!esPorKilo && (cantidadEnCarrito + 1 > stock)) {
+                                MostrarAlerta($"¡Stock Insuficiente!\n\nQuedan {stock} unidades de '{nombre}' y ya tenés {cantidadEnCarrito} en el carrito.");
+                                return; // <--- FRENAMOS ACÁ
+                            }
+
+                            // Si ES por kilo y ya está en 0... ALERTA
+                            if (esPorKilo && stock <= 0) {
+                                MostrarAlerta($"¡No hay stock de '{nombre}'!");
+                                return; // <--- FRENAMOS ACÁ
+                            }
+
+                            // Si pasó la validación, seguimos...
+                            if (esPorKilo) {
+                                productoIdActual = id;
                                 productoPesoActual = nombre;
                                 precioPorKiloActual = precioPorKilo;
-                                lblProductoPeso.Text = $"Producto: {nombre}";
+                                stockActualProducto = stock; // Guardamos el stock para validar el peso después
+
+                                lblProductoPeso.Text = $"Producto: {nombre} (Disp: {stock} kg)";
                                 txtGramosPeso.Clear();
                                 gridPeso.Visibility = Visibility.Visible;
                                 txtGramosPeso.Focus();
                                 esperandoPeso = true;
+                            } else {
+                                // Agregamos directo
+                                carrito.Add(new Producto { Id = id, Nombre = nombre, Precio = precio, Stock = stock });
+                                CalcularTotal();
                             }
-                            else
-                            {
-                                carrito.Add(new Producto { Id = r.GetInt32(0), Nombre = nombre, Precio = precio });
-                            }
-                            CalcularTotal();
                         } else { MessageBox.Show("Producto no registrado."); } 
                     } 
                 } 
-            } catch { } 
+            } catch (Exception ex) { MessageBox.Show(ex.Message); } 
         }
 
         private void TxtBarcodeVenta_KeyDown(object sender, KeyEventArgs e) { 
@@ -573,35 +642,49 @@ namespace KioscoApp
         }
         private void LstSuggestions_SelectionChanged(object sender, SelectionChangedEventArgs e) {
             if (lstSuggestions.SelectedItem is Producto p) {
-                if (p.EsPorKilo)
-                {
-                    // Mostrar panel integrado para ingresar peso
+                
+                // --- VALIDACIÓN DE STOCK ---
+                decimal cantidadEnCarrito = carrito.Where(x => x.Id == p.Id).Sum(x => x.EsPorKilo ? x.Peso / 1000 : 1);
+
+                if (!p.EsPorKilo && (cantidadEnCarrito + 1 > p.Stock)) {
+                    MostrarAlerta($"¡Stock Insuficiente!\nStock disponible: {p.Stock}");
+                    lstSuggestions.SelectedIndex = -1; 
+                    return;
+                }
+
+                if (p.EsPorKilo) {
+                    if (p.Stock <= 0) {
+                        MostrarAlerta($"¡No hay stock de '{p.Nombre}'!");
+                        lstSuggestions.SelectedIndex = -1;
+                        return;
+                    }
                     productoIdActual = p.Id;
                     productoPesoActual = p.Nombre;
                     precioPorKiloActual = p.PrecioPorKilo;
-                    lblProductoPeso.Text = $"Producto: {p.Nombre}";
+                    stockActualProducto = p.Stock; // Guardamos stock
+
+                    lblProductoPeso.Text = $"Producto: {p.Nombre} (Disp: {p.Stock} kg)";
                     txtGramosPeso.Clear();
                     gridPeso.Visibility = Visibility.Visible;
                     txtGramosPeso.Focus();
                     esperandoPeso = true;
-                }
-                else
-                {
+                } else {
                     carrito.Add(p);
+                    CalcularTotal();
+                    txtBarcodeVenta.Clear();
+                    txtBarcodeVenta.Focus();
                 }
-                CalcularTotal();
-                txtBarcodeVenta.Clear();
                 lstSuggestions.Visibility = Visibility.Collapsed;
             }
         }
         private void ActualizarSugerencias() {
             string texto = txtBarcodeVenta.Text.Trim();
             if (!string.IsNullOrEmpty(texto) && !long.TryParse(texto, out _)) {
-                // Buscar por nombre
                 try {
                     using (SqliteConnection conn = GetConnection()) {
                         conn.Open();
-                        SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio, es_por_kilo, precio_por_kilo FROM productos WHERE nombre LIKE @n LIMIT 10", conn);
+                        // Agregamos 'stock' al SELECT
+                        SqliteCommand cmd = new SqliteCommand("SELECT id, nombre, precio, es_por_kilo, precio_por_kilo, stock FROM productos WHERE nombre LIKE @n LIMIT 10", conn);
                         cmd.Parameters.AddWithValue("@n", "%" + texto + "%");
                         var sugerencias = new List<Producto>();
                         using (var r = cmd.ExecuteReader()) {
@@ -611,7 +694,8 @@ namespace KioscoApp
                                     Nombre = r.GetString(1), 
                                     Precio = r.GetDecimal(2),
                                     EsPorKilo = r.GetBoolean(3),
-                                    PrecioPorKilo = r.GetDecimal(4)
+                                    PrecioPorKilo = r.GetDecimal(4),
+                                    Stock = r.GetDecimal(5) // Guardamos el stock
                                 });
                             }
                         }
@@ -690,14 +774,26 @@ namespace KioscoApp
         {
             if (decimal.TryParse(txtGramosPeso.Text.Replace(",", "."), out decimal gramos) && gramos > 0)
             {
-                decimal precioCalculado = (gramos / 1000) * precioPorKiloActual;
+                decimal kilosRequeridos = gramos / 1000;
+                
+                // Verificamos cuánto peso de este producto ya tenemos en el carrito
+                decimal kilosEnCarrito = carrito.Where(x => x.Id == productoIdActual).Sum(x => x.Peso / 1000);
+                
+                // VALIDACIÓN
+                if (kilosEnCarrito + kilosRequeridos > stockActualProducto) {
+                    MostrarAlerta($"¡Te pasaste del stock!\n\nDisponible: {stockActualProducto} kg\nYa tenés en carrito: {kilosEnCarrito} kg\nIntentás llevar: {kilosRequeridos} kg");
+                    return;
+                }
+
+                decimal precioCalculado = kilosRequeridos * precioPorKiloActual;
                 carrito.Add(new Producto { 
                     Id = productoIdActual,
                     Nombre = $"{productoPesoActual} ({gramos}g)", 
                     Precio = Math.Round(precioCalculado, 2),
                     Peso = gramos,
                     EsPorKilo = true,
-                    PrecioPorKilo = precioPorKiloActual
+                    PrecioPorKilo = precioPorKiloActual,
+                    Stock = stockActualProducto
                 });
                 CalcularTotal();
                 gridPeso.Visibility = Visibility.Collapsed;
@@ -786,31 +882,53 @@ namespace KioscoApp
             }
         }
 
+        // 1. Este es el botón de la tabla (SOLO PREGUNTA)
         private void BtnEliminarProducto_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is int id)
             {
-                try
-                {
-                    using (SqliteConnection conn = GetConnection())
-                    {
-                        conn.Open();
-                        SqliteCommand cmd = new SqliteCommand("DELETE FROM productos WHERE id = @id", conn);
-                        cmd.Parameters.AddWithValue("@id", id);
-                        cmd.ExecuteNonQuery();
-                    }
-                    CargarInventario();
-                    // Actualizar sugerencias si hay texto en búsqueda
-                    if (!string.IsNullOrEmpty(txtBarcodeVenta.Text.Trim()))
-                    {
-                        ActualizarSugerencias();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error al eliminar producto: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                idProductoABorrar = id; // Guardamos el ID para después
+
+                // Buscamos el nombre para mostrarlo en el cartel
+                var prod = inventarioCompleto.FirstOrDefault(p => p.Id == id);
+                string nombre = prod != null ? prod.Nombre : "este producto";
+
+                lblMensajeEliminar.Text = $"Se eliminará '{nombre}' permanentemente.\nEsta acción no se puede deshacer.";
+                
+                gridConfirmDelete.Visibility = Visibility.Visible; // Mostramos el cartel
             }
+        }
+
+        // 2. Este es el botón "SÍ, BORRAR" del cartel (EJECUTA EL BORRADO)
+        private void BtnConfirmarEliminar_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    SqliteCommand cmd = new SqliteCommand("DELETE FROM productos WHERE id = @id", conn);
+                    cmd.Parameters.AddWithValue("@id", idProductoABorrar);
+                    cmd.ExecuteNonQuery();
+                }
+                
+                // Cerramos cartel y recargamos
+                gridConfirmDelete.Visibility = Visibility.Collapsed;
+                CargarInventario();
+                
+                // Si justo tenías ese producto buscado en la caja, limpiamos las sugerencias
+                ActualizarSugerencias(); 
+            }
+            catch (Exception ex)
+            {
+                MostrarAlerta("Error al eliminar: " + ex.Message);
+            }
+        }
+
+        // 3. Este es el botón "CANCELAR"
+        private void BtnCancelarEliminar_Click(object sender, RoutedEventArgs e)
+        {
+            gridConfirmDelete.Visibility = Visibility.Collapsed; // Solo cierra y no hace nada
         }
         // Función para mostrar el cartel lindo
         private void MostrarAlerta(string mensaje)
@@ -823,6 +941,113 @@ namespace KioscoApp
         private void BtnCerrarAlerta_Click(object sender, RoutedEventArgs e)
         {
             gridCustomAlert.Visibility = Visibility.Collapsed;
+        }
+        // Variable temporal para saber a qué producto le estamos sumando
+        private int idProductoAEditar = 0;  
+        private int idProductoABorrar = 0; // <--- Variable nueva
+        private bool esModoResta = false;
+        // --- BLOQUE DE GESTIÓN DE STOCK (SUMAR Y RESTAR) ---
+
+        private void BtnSumarStock_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is int id)
+            {
+                idProductoAEditar = id;
+                esModoResta = false;
+
+                var prod = inventarioCompleto.FirstOrDefault(p => p.Id == id);
+                lblNombreProductoStock.Text = prod != null ? $"{prod.Nombre}" : "Producto desconocido";
+                
+                // --- TEXTOS PARA SUMAR ---
+                lblTituloStock.Text = "📦 Ingreso de Mercadería";
+                lblTextoCantidad.Text = "Cantidad a sumar:";
+                
+                txtCantidadStock.Clear();
+                gridStockInput.Visibility = Visibility.Visible;
+                txtCantidadStock.Focus();
+            }
+        }
+
+        private void BtnRestarStock_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is int id)
+            {
+                idProductoAEditar = id;
+                esModoResta = true;
+
+                var prod = inventarioCompleto.FirstOrDefault(p => p.Id == id);
+                lblNombreProductoStock.Text = prod != null ? $"{prod.Nombre}" : "Producto desconocido";
+                
+                // --- TEXTOS PARA RESTAR ---
+                lblTituloStock.Text = "📉 Ajuste de Stock (Resta)";
+                lblTextoCantidad.Text = "Cantidad a quitar:";
+                
+                txtCantidadStock.Clear();
+                gridStockInput.Visibility = Visibility.Visible;
+                txtCantidadStock.Focus();
+            }
+        }
+
+        private void BtnConfirmarStock_Click(object sender, RoutedEventArgs e)
+        {
+            if (decimal.TryParse(txtCantidadStock.Text.Replace(",", "."), out decimal cantidad) && cantidad > 0)
+            {
+                try
+                {
+                    using (SqliteConnection conn = GetConnection())
+                    {
+                        conn.Open();
+                        
+                        // Si es resta, convertimos el número a negativo
+                        decimal cantidadFinal = esModoResta ? (cantidad * -1) : cantidad;
+
+                        // Validacion extra: No dejar stock negativo si restamos
+                        if (esModoResta) {
+                            // Consultamos stock actual para ver si alcanza
+                            SqliteCommand cmdCheck = new SqliteCommand("SELECT stock FROM productos WHERE id = @id", conn);
+                            cmdCheck.Parameters.AddWithValue("@id", idProductoAEditar);
+                            decimal stockActual = Convert.ToDecimal(cmdCheck.ExecuteScalar());
+                            
+                            if (stockActual + cantidadFinal < 0) {
+                                MostrarAlerta($"No podés restar {cantidad} unidades. Solo tenés {stockActual} en stock.");
+                                return;
+                            }
+                        }
+
+                        // La magia: Sumamos el número (que puede ser negativo)
+                        SqliteCommand cmd = new SqliteCommand("UPDATE productos SET stock = stock + @cant WHERE id = @id", conn);
+                        cmd.Parameters.AddWithValue("@cant", cantidadFinal);
+                        cmd.Parameters.AddWithValue("@id", idProductoAEditar);
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    CargarInventario();
+                    gridStockInput.Visibility = Visibility.Collapsed;
+                    
+                    // Opcional: Mostrar confirmación
+                    // string operacion = esModoResta ? "descontadas" : "agregadas";
+                    // MostrarAlerta($"Se han {operacion} {cantidad} unidades correctamente.");
+                }
+                catch (Exception ex)
+                {
+                    MostrarAlerta("Error al actualizar: " + ex.Message);
+                }
+            }
+            else
+            {
+                MostrarAlerta("Por favor ingresá una cantidad válida (mayor a 0).");
+            }
+        }
+
+        private void BtnCancelarStock_Click(object sender, RoutedEventArgs e)
+        {
+            gridStockInput.Visibility = Visibility.Collapsed;
+        }
+
+        private void TxtCantidadStock_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) BtnConfirmarStock_Click(null!, null!);
+            if (e.Key == Key.Escape) gridStockInput.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -858,6 +1083,6 @@ namespace KioscoApp
     public decimal Total { get; set; }
     public string DetalleTexto { get; set; } = "";
 }
-
+    
 }
     
