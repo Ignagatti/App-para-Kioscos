@@ -247,46 +247,55 @@ namespace KioscoApp
 
         private void BtnGuardar_Click(object sender, RoutedEventArgs e) {
             try { 
+                // Validacion basica: que no este vacio el codigo
+                if (string.IsNullOrWhiteSpace(txtCargaBarcode.Text)) {
+                    MessageBox.Show("Por favor ingresá un código de barras.");
+                    return;
+                }
+
                 using (SqliteConnection conn = GetConnection()) { 
                     conn.Open(); 
-                    // Verificar si existe
-                    SqliteCommand checkCmd = new SqliteCommand("SELECT stock FROM productos WHERE codigo_barras = @c", conn);
+                    
+                    // 1. Verificar si existe
+                    SqliteCommand checkCmd = new SqliteCommand("SELECT nombre FROM productos WHERE codigo_barras = @c", conn);
                     checkCmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text);
-                    var existingStock = checkCmd.ExecuteScalar();
-                    if (existingStock != null) {
-                        // Actualizar
-                        SqliteCommand updateCmd = new SqliteCommand("UPDATE productos SET nombre = @n, precio = @p, stock = stock + @s, categoria_id = @cat, es_por_kilo = @epk, precio_por_kilo = @ppk WHERE codigo_barras = @c", conn);
-                        updateCmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text); 
-                        updateCmd.Parameters.AddWithValue("@n", txtCargaNombre.Text); 
-                        updateCmd.Parameters.AddWithValue("@p", decimal.Parse(txtCargaPrecio.Text)); 
-                        updateCmd.Parameters.AddWithValue("@s", decimal.Parse(txtCargaStock.Text)); 
-                        updateCmd.Parameters.AddWithValue("@cat", cbCargaCategoria.SelectedValue ?? 1);
-                        updateCmd.Parameters.AddWithValue("@epk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? 1 : 0);
-                        updateCmd.Parameters.AddWithValue("@ppk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? decimal.Parse(txtCargaPrecio.Text) : 0);
-                        updateCmd.ExecuteNonQuery();
-                    } else {
-                        // Insertar
-                        SqliteCommand insertCmd = new SqliteCommand("INSERT INTO productos (codigo_barras, nombre, precio, stock, categoria_id, es_por_kilo, precio_por_kilo) VALUES (@c, @n, @p, @s, @cat, @epk, @ppk)", conn);
-                        insertCmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text); 
-                        insertCmd.Parameters.AddWithValue("@n", txtCargaNombre.Text); 
-                        insertCmd.Parameters.AddWithValue("@p", decimal.Parse(txtCargaPrecio.Text)); 
-                        insertCmd.Parameters.AddWithValue("@s", decimal.Parse(txtCargaStock.Text)); 
-                        insertCmd.Parameters.AddWithValue("@cat", cbCargaCategoria.SelectedValue ?? 1);
-                        insertCmd.Parameters.AddWithValue("@epk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? 1 : 0);
-                        insertCmd.Parameters.AddWithValue("@ppk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? decimal.Parse(txtCargaPrecio.Text) : 0);
-                        insertCmd.ExecuteNonQuery();
+                    
+                    var existingName = checkCmd.ExecuteScalar();
+
+                    if (existingName != null) 
+                    {
+                        // ACÁ ES EL CAMBIO:
+                        // En vez de MessageBox.Show(...), usamos la nueva alerta:
+                        MostrarAlerta($"El código '{txtCargaBarcode.Text}' ya pertenece al producto: '{existingName}'.\n\nNo se permite duplicar códigos.");
+                        
+                        return; // Esto es muy importante para que corte y no guarde
                     }
-                    MessageBox.Show("Producto Guardado.");
-                    // Limpiar campos después de guardar
+                    
+                    // 2. Si llegamos aca, es porque NO existe. Insertamos el nuevo.
+                    SqliteCommand insertCmd = new SqliteCommand("INSERT INTO productos (codigo_barras, nombre, precio, stock, categoria_id, es_por_kilo, precio_por_kilo) VALUES (@c, @n, @p, @s, @cat, @epk, @ppk)", conn);
+                    insertCmd.Parameters.AddWithValue("@c", txtCargaBarcode.Text); 
+                    insertCmd.Parameters.AddWithValue("@n", txtCargaNombre.Text); 
+                    insertCmd.Parameters.AddWithValue("@p", decimal.Parse(txtCargaPrecio.Text)); 
+                    insertCmd.Parameters.AddWithValue("@s", decimal.Parse(txtCargaStock.Text)); 
+                    insertCmd.Parameters.AddWithValue("@cat", cbCargaCategoria.SelectedValue ?? 1);
+                    insertCmd.Parameters.AddWithValue("@epk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? 1 : 0);
+                    insertCmd.Parameters.AddWithValue("@ppk", cbCargaCategoria.Text.ToLower().Contains("fiambre") ? decimal.Parse(txtCargaPrecio.Text) : 0);
+                    
+                    insertCmd.ExecuteNonQuery();
+
+                    MessageBox.Show("Producto Guardado Exitosamente.");
+                    
+                    // Limpiar campos
                     txtCargaBarcode.Clear();
                     txtCargaNombre.Clear();
                     txtCargaPrecio.Clear();
                     txtCargaStock.Text = "0";
                     cbCargaCategoria.SelectedIndex = 0;
                     lblCargaStatus.Text = "Listo";
-                    lblCargaStatus.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102)); // Gris
+                    lblCargaStatus.Foreground = new SolidColorBrush(Color.FromRgb(102, 102, 102));
                     txtCargaBarcode.Focus();
-                    CargarInventario(); // Recargar inventario con precios actualizados
+                    
+                    CargarInventario(); 
                 } 
             } catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
         }
@@ -803,7 +812,18 @@ namespace KioscoApp
                 }
             }
         }
+        // Función para mostrar el cartel lindo
+        private void MostrarAlerta(string mensaje)
+        {
+            txtAlertMessage.Text = mensaje;
+            gridCustomAlert.Visibility = Visibility.Visible;
+        }
 
+        // Función para cerrar el cartel
+        private void BtnCerrarAlerta_Click(object sender, RoutedEventArgs e)
+        {
+            gridCustomAlert.Visibility = Visibility.Collapsed;
+        }
     }
 
     public class Producto {
@@ -838,4 +858,6 @@ namespace KioscoApp
     public decimal Total { get; set; }
     public string DetalleTexto { get; set; } = "";
 }
+
 }
+    
