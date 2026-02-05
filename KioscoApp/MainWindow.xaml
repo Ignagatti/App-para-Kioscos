@@ -73,14 +73,13 @@
                                             <DataTemplate>
                                                 <StackPanel VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold" FontSize="14"/>
-                                                    <TextBlock Text="{Binding Cantidad, StringFormat='x{0} un.'}" 
-                                                            FontSize="11" Foreground="#757575" Margin="0,2,0,0"/>
+                                                    <TextBlock Text="{Binding CantidadTexto}" FontSize="11" Foreground="#757575" Margin="0,2,0,0"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     
-                                    <DataGridTextColumn Header="Precio" Binding="{Binding Precio, StringFormat='C'}" Width="120"/>
+                                    <DataGridTextColumn Header="Precio" Binding="{Binding PrecioTexto}" Width="140"/>
                                     <DataGridTemplateColumn Width="80">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -325,21 +324,61 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="gridCobro" Visibility="Collapsed" Background="#CC000000" KeyDown="GridCobro_KeyDown">
-            <Border Background="White" Width="420" CornerRadius="16" VerticalAlignment="Center" Padding="35">
-                <StackPanel>
-                    <TextBlock Text="💳 COBRAR" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,25"/>
-                    <Border Background="#2E7D32" CornerRadius="10" Padding="15" Margin="0,0,0,20">
-                        <TextBlock x:Name="lblTotalCobro" FontSize="40" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+        <Grid x:Name="gridCobro" Visibility="Collapsed" Panel.ZIndex="1000">
+            <Border Background="Black" Opacity="0.6" MouseDown="BtnCancelCobro_Click"/>
+
+            <Border Background="White" Width="400" CornerRadius="15" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+                </Border.Effect>
+
+                <StackPanel VerticalAlignment="Center" Margin="30">
+                    <TextBlock Text="Cobrar Venta" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+
+                    <Border Background="#E8F5E9" CornerRadius="10" Padding="15" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="Total a Pagar" FontSize="14" Foreground="#4CAF50" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="lblTotalCobro" Text="$ 0.00" FontSize="36" FontWeight="Bold" Foreground="#2E7D32" HorizontalAlignment="Center"/>
+                        </StackPanel>
                     </Border>
-                    <ComboBox x:Name="cbMetodoPago" Height="40" Margin="0,0,0,15" SelectedIndex="0">
+
+                    <TextBlock Text="Método de Pago:" FontSize="14" Foreground="#666" Margin="0,0,0,5"/>
+                    <ComboBox x:Name="cbMetodoPago" FontSize="16" Padding="10" SelectedIndex="0" Margin="0,0,0,15">
                         <ComboBoxItem Content="Efectivo"/>
-                        <ComboBoxItem Content="Otros"/>
+                        <ComboBoxItem Content="Débito"/>
+                        <ComboBoxItem Content="Crédito"/>
+                        <ComboBoxItem Content="QR / Transferencia"/>
                     </ComboBox>
-                    <TextBox x:Name="txtPagaCon" FontSize="28" Height="55" Margin="0,0,0,20" TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"/>
-                    <TextBlock x:Name="lblVuelto" Text="$ 0" FontSize="36" Foreground="#D32F2F" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,20"/>
-                    <Button Content="✓ FINALIZAR" Click="BtnConfirmarVenta_Click" Style="{StaticResource ModernButton}" Background="#4CAF50" Height="55"/>
-                    <Button Content="← VOLVER" Click="BtnCancelCobro_Click" Margin="0,10,0,0" Background="Transparent" Foreground="#666" BorderThickness="0"/>
+
+                    <CheckBox x:Name="chkImprimirTicket" Content="🖨️ Imprimir Ticket" 
+                            FontSize="16" Margin="0,5,0,15" 
+                            HorizontalAlignment="Center" Cursor="Hand"/>
+
+                    <TextBlock Text="Paga con:" FontSize="18" Foreground="#666" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                    <TextBox x:Name="txtPagaCon" FontSize="28" Height="50" TextAlignment="Center" Margin="0,0,0,10"
+                            TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"
+                            PreviewTextInput="TxtGramosPeso_PreviewTextInput"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,25">
+                        <TextBlock Text="Su Vuelto: " FontSize="20" Foreground="#666"/>
+                        <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="20" FontWeight="Bold" Foreground="#333"/>
+                    </StackPanel>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="15"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <Button Grid.Column="0" Content="Cancelar (Esc)" Click="BtnCancelCobro_Click" Height="45" Background="#FFEBEE" Foreground="#D32F2F" BorderThickness="0" FontSize="16" Cursor="Hand">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                        </Button>
+                        
+                        <Button Grid.Column="2" Content="COBRAR (Enter)" Click="BtnConfirmarVenta_Click" Height="45" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="16" FontWeight="Bold" Cursor="Hand">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                        </Button>
+                    </Grid>
                 </StackPanel>
             </Border>
         </Grid>
@@ -405,7 +444,7 @@
                     <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
                 </Border.Effect>
                 
-                        <Grid Margin="20">
+                <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
