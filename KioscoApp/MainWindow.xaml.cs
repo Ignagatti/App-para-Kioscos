@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Globalization;
+using System.Windows.Documents; // Necesario para imprimir en WPF
 
 namespace KioscoApp
 {
@@ -189,23 +190,25 @@ namespace KioscoApp
                 // --- PASO 2: SI LLEGAMOS ACÁ, HAY STOCK. PROCEDEMOS A VENDER ---
                 string m = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Efectivo";
                 
+                long idVenta = 0;
                 using (SqliteTransaction t = conn.BeginTransaction()) {
+                    bool committed = false;
                     try {
                         // 1. Crear la Venta (Cabecera)
                         SqliteCommand cV = new SqliteCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id) VALUES (@t, @c, @m, @sid); SELECT last_insert_rowid();", conn, t);
-                        cV.Parameters.AddWithValue("@t", totalVenta); 
-                        cV.Parameters.AddWithValue("@c", carrito.Count); 
-                        cV.Parameters.AddWithValue("@m", m); 
+                        cV.Parameters.AddWithValue("@t", totalVenta);
+                        cV.Parameters.AddWithValue("@c", carrito.Count);
+                        cV.Parameters.AddWithValue("@m", m);
                         cV.Parameters.AddWithValue("@sid", sesionIdActiva);
-                        long idVenta = Convert.ToInt64(cV.ExecuteScalar());
+                        idVenta = Convert.ToInt64(cV.ExecuteScalar());
 
                         // 2. Guardar Detalles y Descontar Stock
                         foreach (var p in carrito) {
                             // Detalle
                             SqliteCommand cD = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @p, 1, @p)", conn, t);
-                            cD.Parameters.AddWithValue("@id", idVenta); 
-                            cD.Parameters.AddWithValue("@n", p.Nombre); 
-                            cD.Parameters.AddWithValue("@p", p.Precio); 
+                            cD.Parameters.AddWithValue("@id", idVenta);
+                            cD.Parameters.AddWithValue("@n", p.Nombre);
+                            cD.Parameters.AddWithValue("@p", p.Precio);
                             cD.ExecuteNonQuery();
 
                             // Descuento de Stock
@@ -215,26 +218,41 @@ namespace KioscoApp
                                 cU.ExecuteNonQuery();
                             }
                         }
+
                         t.Commit(); // Confirmar cambios en BD
-                        
-                        // 3. Limpieza de interfaz
-                        carrito.Clear(); 
-                        CalcularTotal(); 
-                        gridCobro.Visibility = Visibility.Collapsed; 
-                        txtBarcodeVenta.Clear(); 
-                        txtBarcodeVenta.Focus();
-                        
-                        // Actualizar cajita de ventas
-                        CargarCaja();
-                        
-                        // Feedback opcional (podrías usar MostrarAlerta si querés avisar que se vendió)
-                        // MessageBox.Show("Venta registrada"); 
-                        
-                    } catch (Exception ex) { 
-                        t.Rollback(); // Si falla algo, deshacemos todo
-                        MostrarAlerta("Error al procesar venta: " + ex.Message); 
+                        committed = true;
+
+                    } catch (Exception ex) {
+                        // Intentamos rollback sólo si no se confirmó la transacción
+                        if (!committed) {
+                            try { t.Rollback(); } catch { /* Ignorar errores de rollback */ }
+                        }
+
+                        MostrarAlerta("Error al procesar venta: " + ex.Message);
+                        return; // Salir del método para no continuar con impresión/limpieza
                     }
                 }
+
+                // Fuera de la transacción: ahora podemos imprimir y actualizar UI sin interferir con la transacción
+                decimal montoPago = 0;
+                decimal.TryParse(txtPagaCon.Text, out montoPago);
+                decimal vuelto = montoPago - totalVenta;
+
+                if (chkImprimirTicket.IsChecked == true)
+                {
+                    try { ImprimirTicket(idVenta, totalVenta, montoPago, vuelto); } catch (Exception ex) { MostrarAlerta("No se pudo imprimir el ticket: " + ex.Message); }
+                }
+
+                // Limpieza y actualización de UI
+                carrito.Clear();
+                CalcularTotal();
+                gridCobro.Visibility = Visibility.Collapsed;
+                txtBarcodeVenta.Clear();
+                txtBarcodeVenta.Focus();
+
+                // Actualizar cajita de ventas
+                CargarCaja();
+
             }
         }
 
@@ -434,7 +452,8 @@ namespace KioscoApp
                         
                         if (data["product"] != null)
                         {
-                            string nombre = data["product"]["product_name"]?.ToString() ?? data["product"]["generic_name"]?.ToString() ?? "";
+                            var product = data["product"] as JObject;
+                            string nombre = product?["product_name"]?.ToString() ?? product?["generic_name"]?.ToString() ?? "";
                             if (!string.IsNullOrEmpty(nombre))
                             {
                                 txtCargaNombre.Text = nombre;
@@ -732,7 +751,8 @@ namespace KioscoApp
                     // 2. Verificar si ya existe para no duplicar
                     SqliteCommand cmdCheck = new SqliteCommand("SELECT COUNT(*) FROM categorias WHERE nombre = @n", conn);
                     cmdCheck.Parameters.AddWithValue("@n", nombreCategoria);
-                    long count = (long)cmdCheck.ExecuteScalar();
+                    var countObj = cmdCheck.ExecuteScalar();
+                    long count = countObj != null ? Convert.ToInt64(countObj) : 0L;
 
                     if (count > 0)
                     {
@@ -1049,19 +1069,117 @@ namespace KioscoApp
             if (e.Key == Key.Enter) BtnConfirmarStock_Click(null!, null!);
             if (e.Key == Key.Escape) gridStockInput.Visibility = Visibility.Collapsed;
         }
+
+        private void ImprimirTicket(long nroVenta, decimal total, decimal pago, decimal vuelto)
+        {
+            try
+            {
+                PrintDialog printDialog = new PrintDialog();
+                
+                // Si querés que imprima directo en la predeterminada sin preguntar, comentá la línea 'if' y dejá lo de adentro.
+                // if (printDialog.ShowDialog() == true) 
+                {
+                    // 1. Configuramos el documento (Ancho típico de ticket térmica: 80mm ~ 300px)
+                    FlowDocument doc = new FlowDocument();
+                    doc.PagePadding = new Thickness(10);
+                    doc.ColumnWidth = 300; 
+                    doc.FontFamily = new FontFamily("Consolas"); // Fuente monoespaciada tipo ticket
+                    doc.FontSize = 10;
+
+                    // 2. Encabezado
+                    Paragraph header = new Paragraph(new Run("KIOSCO 'TU NOMBRE'\nEsperanza, Santa Fe\n--------------------------------")) 
+                    { TextAlignment = TextAlignment.Center };
+                    doc.Blocks.Add(header);
+
+                    // 3. Datos de la Venta
+                    Paragraph details = new Paragraph();
+                    details.Inlines.Add(new Run($"Fecha: {DateTime.Now:dd/MM/yyyy HH:mm}\n"));
+                    details.Inlines.Add(new Run($"Venta Nro: {nroVenta}\n"));
+                    doc.Blocks.Add(details);
+
+                    // 4. Lista de Productos (centrada como en un ticket)
+                    doc.Blocks.Add(new Paragraph(new Run("--------------------------------")) { TextAlignment = TextAlignment.Center });
+
+                    foreach (var p in carrito)
+                    {
+                        string nombreCorto = p.Nombre.Length > 20 ? p.Nombre.Substring(0, 20) : p.Nombre;
+                        string linea = $"{p.CantidadTexto}  {nombreCorto}  {p.Subtotal:0.00}";
+                        var pLine = new Paragraph(new Run(linea)) { TextAlignment = TextAlignment.Center };
+                        doc.Blocks.Add(pLine);
+                    }
+
+                    doc.Blocks.Add(new Paragraph(new Run("--------------------------------")) { TextAlignment = TextAlignment.Center });
+
+                    // 5. Totales (centrados)
+                    var totals = new Paragraph();
+                    totals.Inlines.Add(new Run($"TOTAL: $ {total:0.00}\n") { FontWeight = FontWeights.Bold, FontSize = 14 });
+                    totals.Inlines.Add(new Run($"Su Pago: $ {pago:0.00}\n"));
+                    totals.Inlines.Add(new Run($"Vuelto: $ {vuelto:0.00}"));
+                    totals.TextAlignment = TextAlignment.Center;
+                    doc.Blocks.Add(totals);
+
+                    // 6. Pie de página
+                    Paragraph footer = new Paragraph(new Run("\n¡Gracias por su compra!\n")) 
+                    { TextAlignment = TextAlignment.Center, FontSize = 9 };
+                    doc.Blocks.Add(footer);
+
+                    // 7. Mandar a Imprimir
+                    // IDocumentPaginatorSource es la interfaz que permite imprimir el FlowDocument
+                    printDialog.PrintDocument(((IDocumentPaginatorSource)doc).DocumentPaginator, "Ticket Venta " + nroVenta);
+                }
+            }
+            catch (Exception ex)
+            {
+                MostrarAlerta("No se pudo imprimir el ticket.\n" + ex.Message);
+            }
+        }
     }
 
     public class Producto {
         public int Id { get; set; }
         public string CodigoBarras { get; set; } = "";
         public string Nombre { get; set; } = "";
-        public decimal Precio { get; set; }
-        public decimal Stock { get; set; }
+
+        private decimal _precio;
+        public decimal Precio { get => _precio; set => _precio = value < 0m ? 0m : value; }
+
+        private decimal _stock;
+        public decimal Stock { get => _stock; set => _stock = value < 0m ? 0m : value; }
+
         public string Categoria { get; set; } = "";
         public bool EsPorKilo { get; set; } = false;
-        public decimal PrecioPorKilo { get; set; } = 0;
+
+        private decimal _precioPorKilo;
+        public decimal PrecioPorKilo { get => _precioPorKilo; set => _precioPorKilo = value < 0m ? 0m : value; }
+
         public int CategoriaId { get; set; }
-        public decimal Peso { get; set; } = 0; // Para productos por kilo en carrito
+
+        private decimal _peso;
+        // Peso en gramos
+        public decimal Peso { get => _peso; set => _peso = value < 0m ? 0m : value; } // Para productos por kilo en carrito
+
+        // Cantidad para cálculos: si es por kilo devuelve kilos, si es unidad devuelve 1
+        public decimal Cantidad => EsPorKilo ? (Peso / 1000m) : 1m;
+
+        // Subtotal: precio por unidad o precio por kilo * kilos
+        public decimal Subtotal => EsPorKilo ? (PrecioPorKilo * (Peso / 1000m)) : Precio;
+
+        // Texto formateado para mostrar cantidad en UI e impresión (ej: "250 g", "0.25 kg", "x1 un.")
+        public string CantidadTexto
+        {
+            get
+            {
+                if (EsPorKilo)
+                {
+                    if (Peso < 1000m) return $"{(int)Peso} g"; // mostrar gramos como entero
+                    return $"{(Peso / 1000m):0.###} kg"; // mostrar kilos con hasta 3 decimales
+                }
+                return $"x{(int)Cantidad} un."; // unidades
+            }
+        }
+
+        // Texto para mostrar precio: "$ 123,00" o "$ 123,00 / kg"
+        public string PrecioTexto => EsPorKilo ? $"{PrecioPorKilo.ToString("C2")} / kg" : Precio.ToString("C2");
 
         public decimal PrecioEfectivo
         {
@@ -1069,10 +1187,19 @@ namespace KioscoApp
             set
             {
                 if (EsPorKilo)
-                    PrecioPorKilo = value;
+                    PrecioPorKilo = value < 0m ? 0m : value;
                 else
-                    Precio = value;
+                    Precio = value < 0m ? 0m : value;
             }
+        }
+
+        // Validación simple para asegurar consistencia (se puede llamar después de asignar desde UI o DB)
+        public void Validate()
+        {
+            if (Precio < 0m) Precio = 0m;
+            if (PrecioPorKilo < 0m) PrecioPorKilo = 0m;
+            if (Stock < 0m) Stock = 0m;
+            if (Peso < 0m) Peso = 0m;
         }
     }
     public class VentaResumen
