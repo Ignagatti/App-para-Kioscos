@@ -156,10 +156,10 @@ namespace KioscoApp
             if (carrito.Count == 0) return;
 
             // --- PASO 1: VALIDACIÓN DE STOCK ---
-            // Agrupamos para saber cuánto necesitamos de cada producto (por si escaneaste 3 Cocas iguales)
+            // Agrupamos para saber cuánto necesitamos de cada producto (si es por kilo sumamos kilos; si es unidad sumamos 1)
             var productosRequeridos = carrito
                 .GroupBy(p => p.Id)
-                .Select(g => new { Id = g.Key, CantidadRequerida = g.Count() })
+                .Select(g => new { Id = g.Key, CantidadRequerida = g.Sum(p => p.EsPorKilo ? p.Peso / 1000m : 1m) })
                 .ToList();
 
             using (SqliteConnection conn = GetConnection()) {
@@ -204,16 +204,24 @@ namespace KioscoApp
 
                         // 2. Guardar Detalles y Descontar Stock
                         foreach (var p in carrito) {
-                            // Detalle
-                            SqliteCommand cD = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @p, 1, @p)", conn, t);
+                            // Detalle: almacenamos precio por unidad (o por kg), cantidad correcta y subtotal
+                            decimal cantidadDetalle = p.EsPorKilo ? (p.Peso / 1000m) : 1m;
+                            decimal precioUnitario = p.EsPorKilo ? p.PrecioPorKilo : p.Precio;
+                            decimal subtotalDetalle = p.Subtotal;
+
+                            SqliteCommand cD = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @precio, @cantidad, @subtotal)", conn, t);
                             cD.Parameters.AddWithValue("@id", idVenta);
                             cD.Parameters.AddWithValue("@n", p.Nombre);
-                            cD.Parameters.AddWithValue("@p", p.Precio);
+                            cD.Parameters.AddWithValue("@precio", precioUnitario);
+                            cD.Parameters.AddWithValue("@cantidad", cantidadDetalle);
+                            cD.Parameters.AddWithValue("@subtotal", subtotalDetalle);
                             cD.ExecuteNonQuery();
 
-                            // Descuento de Stock
+                            // Descuento de Stock (si el producto existe en BD)
                             if (p.Id > 0) {
-                                SqliteCommand cU = new SqliteCommand("UPDATE productos SET stock = stock - 1 WHERE id = @pid", conn, t);
+                                decimal qtyToSubtract = cantidadDetalle; // 1 para unidades, kilos para productos por kilo
+                                SqliteCommand cU = new SqliteCommand("UPDATE productos SET stock = stock - @q WHERE id = @pid", conn, t);
+                                cU.Parameters.AddWithValue("@q", qtyToSubtract);
                                 cU.Parameters.AddWithValue("@pid", p.Id);
                                 cU.ExecuteNonQuery();
                             }
