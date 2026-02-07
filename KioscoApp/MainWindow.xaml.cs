@@ -104,6 +104,22 @@ namespace KioscoApp
                     cmd.ExecuteNonQuery();
                 }
 
+                string sqlMovimientos = @"
+                    CREATE TABLE IF NOT EXISTS Movimientos_Caja (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        Tipo TEXT NOT NULL,
+                        Categoria TEXT NOT NULL,
+                        Monto DECIMAL NOT NULL,
+                        Descripcion TEXT,
+                        SesionId INTEGER
+                    );";
+                
+                using (SqliteCommand cmd = new SqliteCommand(sqlMovimientos, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
                 try {
                     // Verificar si la columna precio_por_kilo existe
                     SqliteCommand checkCol2 = new SqliteCommand("PRAGMA table_info(productos)", conn);
@@ -168,6 +184,23 @@ namespace KioscoApp
 
         private void FinalizarVenta() {
             if (carrito.Count == 0) return;
+
+            // --- VALIDACIÓN DE PAGO ---
+            if (!decimal.TryParse(txtPagaCon.Text, out decimal montoPago) || montoPago <= 0)
+            {
+                MostrarErrorPago("⚠️ Ingresá un monto válido para el pago.");
+                return;
+            }
+
+            if (montoPago < totalVenta)
+            {
+                decimal falta = totalVenta - montoPago;
+                MostrarErrorPago($"❌ Falta: ${falta:F2}");
+                return;
+            }
+
+            // Limpiar error si la validación pasó
+            borderErrorPago.Visibility = Visibility.Collapsed;
 
             // --- PASO 1: VALIDACIÓN DE STOCK ---
             // Agrupamos para saber cuánto necesitamos de cada producto (si es por kilo sumamos kilos; si es unidad sumamos 1)
@@ -256,8 +289,6 @@ namespace KioscoApp
                 }
 
                 // Fuera de la transacción: ahora podemos imprimir y actualizar UI sin interferir con la transacción
-                decimal montoPago = 0;
-                decimal.TryParse(txtPagaCon.Text, out montoPago);
                 decimal vuelto = montoPago - totalVenta;
 
                 if (chkImprimirTicket.IsChecked == true)
@@ -413,6 +444,7 @@ namespace KioscoApp
             lblTotalCobro.Text = totalVenta.ToString("C2"); 
             txtPagaCon.Clear();
             lblVuelto.Text = "$ 0.00";
+            borderErrorPago.Visibility = Visibility.Collapsed;  // Limpiar error anterior
             gridCobro.Visibility = Visibility.Visible; 
             txtPagaCon.Focus(); 
         }
@@ -452,7 +484,10 @@ namespace KioscoApp
         }
         private void BtnQuitar_Click(object sender, RoutedEventArgs e) { if (dgCarrito.SelectedItem is Producto p) { carrito.Remove(p); CalcularTotal(); } }
         private void BtnConfirmarVenta_Click(object sender, RoutedEventArgs e) => FinalizarVenta();
-        private void BtnCancelCobro_Click(object sender, RoutedEventArgs e) => gridCobro.Visibility = Visibility.Collapsed;
+        private void BtnCancelCobro_Click(object sender, RoutedEventArgs e) { 
+            gridCobro.Visibility = Visibility.Collapsed;
+            borderErrorPago.Visibility = Visibility.Collapsed;
+        }
         private void TxtPagaCon_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) FinalizarVenta(); }
         private void GridCobro_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) gridCobro.Visibility = Visibility.Collapsed; }
         private void TxtCargaBarcode_KeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) txtCargaNombre.Focus(); }
@@ -607,7 +642,8 @@ namespace KioscoApp
                     
                     lblCajaEfectivo.Text = (montoAperturaActual + efectivo).ToString("C");
                     lblCajaOtros.Text = otros.ToString("C");
-                    lblCajaTotal.Text = (efectivo + otros).ToString("C");
+                    // Total debe incluir el monto de apertura también
+                    lblCajaTotal.Text = (montoAperturaActual + efectivo + otros).ToString("C");
 
                     // 2. Traer el historial CON DETALLE (Adaptado para SQLite)
                     string sql = @"
@@ -617,11 +653,14 @@ namespace KioscoApp
                             v.metodo_pago, 
                             v.total,
                             GROUP_CONCAT(
-                                vd.nombre || ' (' || 
                                 CASE 
-                                    WHEN vd.cantidad < 1 THEN CAST((vd.cantidad * 1000) AS INT) || ' gr'
-                                    ELSE CAST(vd.cantidad AS INT) || ' un.'
-                                END || ')', 
+                                    WHEN vd.nombre = 'Pago de fiados' THEN vd.nombre
+                                    ELSE vd.nombre || ' (' || 
+                                        CASE 
+                                            WHEN vd.cantidad < 1 THEN CAST((vd.cantidad * 1000) AS INT) || ' gr'
+                                            ELSE CAST(vd.cantidad AS INT) || ' un.'
+                                        END || ')'
+                                END,
                                 ', '
                             ) as detalle_completo
                         FROM ventas v
@@ -645,11 +684,12 @@ namespace KioscoApp
                                 Fecha = r.GetDateTime(1),
                                 MetodoPago = r.GetString(2),
                                 Total = r.GetDecimal(3),
-                                DetalleTexto = r.IsDBNull(4) ? "Sin detalle" : r.GetString(4)
+                                DetalleTexto = r.IsDBNull(4) ? "Pago de fiados" : r.GetString(4)
                             });
                         }
                     }
                     dgHistorialVentas.ItemsSource = listaVentas;
+                    CargarMovimientos();
                 }
             }
             catch (Exception ex)
@@ -979,6 +1019,13 @@ namespace KioscoApp
             gridCustomAlert.Visibility = Visibility.Visible;
         }
 
+        // Función para mostrar errores de pago dentro del modal de cobro
+        private void MostrarErrorPago(string mensaje)
+        {
+            lblErrorPago.Text = mensaje;
+            borderErrorPago.Visibility = Visibility.Visible;
+        }
+
         // Función para cerrar el cartel
         private void BtnCerrarAlerta_Click(object sender, RoutedEventArgs e)
         {
@@ -1170,7 +1217,72 @@ namespace KioscoApp
         private void BtnFiar_Click(object sender, RoutedEventArgs e) => ModificarSaldo(1);
 
         // 5. Botón PAGAR (Disminuir Deuda)
-        private void BtnPagarDeuda_Click(object sender, RoutedEventArgs e) => ModificarSaldo(-1);
+        private void BtnPagarDeuda_Click(object sender, RoutedEventArgs e)
+        {
+            if (dgClientes.SelectedItem is Cliente cliente && decimal.TryParse(txtMontoFiado.Text, out decimal monto))
+            {
+                // Validación: no puede pagar más de lo que debe
+                if (monto > cliente.Saldo)
+                {
+                    MostrarAlerta($"⚠️ No puedés pagar más de lo que debe.\n\nDeuda actual: ${cliente.Saldo:F2}\nIntentás pagar: ${monto:F2}");
+                    return;
+                }
+
+                try
+                {
+                    string metodoPago = (cbMetodoPagoCobro.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Efectivo";
+                    
+                    using (SqliteConnection conn = GetConnection())
+                    {
+                        conn.Open();
+                        
+                        // 1. Actualizar saldo del cliente
+                        SqliteCommand cmdActualizar = new SqliteCommand("UPDATE Clientes SET Saldo = Saldo - @monto WHERE Id = @id", conn);
+                        cmdActualizar.Parameters.AddWithValue("@monto", monto);
+                        cmdActualizar.Parameters.AddWithValue("@id", cliente.Id);
+                        cmdActualizar.ExecuteNonQuery();
+
+                        // 2. Registrar el pago como una venta especial en la tabla ventas
+                        // (Para que se contabilice en caja - efectivo o "otros").
+                        // Además guardamos un detalle para que en el historial se vea
+                        // "Pago de fiados" en lugar de "Sin detalle".
+                        SqliteCommand cmdVenta = new SqliteCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id) VALUES (@total, 1, @metodo, @sesion); SELECT last_insert_rowid();", conn);
+                        cmdVenta.Parameters.AddWithValue("@total", monto);
+                        cmdVenta.Parameters.AddWithValue("@metodo", metodoPago);
+                        cmdVenta.Parameters.AddWithValue("@sesion", sesionIdActiva);
+                        long idVenta = Convert.ToInt64(cmdVenta.ExecuteScalar());
+
+                        // Insertar detalle para que aparezca en el historial
+                        SqliteCommand cmdDetalle = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @precio, @cantidad, @subtotal)", conn);
+                        cmdDetalle.Parameters.AddWithValue("@id", idVenta);
+                        cmdDetalle.Parameters.AddWithValue("@n", "Pago de fiados");
+                        cmdDetalle.Parameters.AddWithValue("@precio", monto);
+                        cmdDetalle.Parameters.AddWithValue("@cantidad", 1);
+                        cmdDetalle.Parameters.AddWithValue("@subtotal", monto);
+                        cmdDetalle.ExecuteNonQuery();
+
+                        // Nota: no modificamos aquí `montoAperturaActual` porque
+                        // el pago ya se registra en la tabla `ventas` y
+                        // `CargarCaja()` suma los `ventas` para calcular la caja.
+                        // Evitamos duplicar el monto en efectivo.
+                    }
+
+                    txtMontoFiado.Clear();
+                    CargarClientes();
+                    CargarCaja();  // Refrescar la caja para ver ambos valores actualizados
+                    
+                    MostrarAlerta($"✅ ${monto:F2} pagado.\n\nDeuda actualizada.\nRegistrado en caja como {metodoPago}.");
+                }
+                catch (Exception ex)
+                {
+                    MostrarAlerta($"❌ Error al procesar el pago:\n\n{ex.Message}");
+                }
+            }
+            else
+            {
+                MostrarAlerta("⚠️ Seleccioná un cliente e ingresá un monto válido.");
+            }
+        }
 
         // Lógica compartida para sumar o restar plata
         private void ModificarSaldo(int factor)
@@ -1278,6 +1390,129 @@ namespace KioscoApp
                 MostrarAlerta("No se pudo imprimir el ticket.\n" + ex.Message);
             }
         }
+
+        private string tipoMovimientoActual = "ENTRADA"; // Para saber si es entrada o salida
+
+        private void CargarMovimientos()
+        {
+            try
+            {
+                List<MovimientoCaja> movimientos = new List<MovimientoCaja>();
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    SqliteCommand cmd = new SqliteCommand(
+                        "SELECT Id, Fecha, Tipo, Categoria, Monto, Descripcion, SesionId FROM Movimientos_Caja WHERE SesionId = @sesion ORDER BY Fecha DESC",
+                        conn);
+                    cmd.Parameters.AddWithValue("@sesion", sesionIdActiva);
+                    
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            movimientos.Add(new MovimientoCaja
+                            {
+                                Id = reader.GetInt32(0),
+                                Fecha = reader.GetDateTime(1),
+                                Tipo = reader.GetString(2),
+                                Categoria = reader.GetString(3),
+                                Monto = reader.GetDecimal(4),
+                                Descripcion = reader.IsDBNull(5) ? "" : reader.GetString(5),
+                                SesionId = reader.GetInt32(6)
+                            });
+                        }
+                    }
+                }
+                dgMovimientos.ItemsSource = movimientos;
+            }
+            catch (Exception ex)
+            {
+                MostrarAlerta($"❌ Error al cargar movimientos:\n\n{ex.Message}");
+            }
+        }
+
+        private void BtnRegistrarEntrada_Click(object sender, RoutedEventArgs e)
+        {
+            tipoMovimientoActual = "ENTRADA";
+            lblTituloMovimiento.Text = "💵 REGISTRAR ENTRADA";
+            cbCategoriaMov.Items.Clear();
+            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Cambio Banco" });
+            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Aporte de Capital" });
+            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Otro" });
+            cbCategoriaMov.SelectedIndex = 0;
+            
+            txtMontoMov.Clear();
+            txtDescripcionMov.Clear();
+            gridMovimiento.Visibility = Visibility.Visible;
+            txtMontoMov.Focus();
+        }
+
+        private void BtnRegistrarSalida_Click(object sender, RoutedEventArgs e)
+        {
+            tipoMovimientoActual = "SALIDA";
+            lblTituloMovimiento.Text = "💸 REGISTRAR SALIDA";
+            cbCategoriaMov.Items.Clear();
+            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Pago a Proveedor" });
+            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Extracción Personal" });
+            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Compra Artículos" });
+            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Otro" });
+            cbCategoriaMov.SelectedIndex = 0;
+            
+            txtMontoMov.Clear();
+            txtDescripcionMov.Clear();
+            gridMovimiento.Visibility = Visibility.Visible;
+            txtMontoMov.Focus();
+        }
+
+        private void BtnGuardarMovimiento_Click(object sender, RoutedEventArgs e)
+        {
+            if (!decimal.TryParse(txtMontoMov.Text, out decimal monto) || monto <= 0)
+            {
+                MostrarAlerta("⚠️ Ingresá un monto válido (mayor a 0).");
+                return;
+            }
+
+            string categoria = (cbCategoriaMov.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Otro";
+
+            try
+            {
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    SqliteCommand cmd = new SqliteCommand(
+                        "INSERT INTO Movimientos_Caja (Fecha, Tipo, Categoria, Monto, Descripcion, SesionId) VALUES (@fecha, @tipo, @categoria, @monto, @desc, @sesion)",
+                        conn);
+                    cmd.Parameters.AddWithValue("@fecha", DateTime.Now);
+                    cmd.Parameters.AddWithValue("@tipo", tipoMovimientoActual);
+                    cmd.Parameters.AddWithValue("@categoria", categoria);
+                    cmd.Parameters.AddWithValue("@monto", monto);
+                    cmd.Parameters.AddWithValue("@desc", txtDescripcionMov.Text);
+                    cmd.Parameters.AddWithValue("@sesion", sesionIdActiva);
+                    
+                    cmd.ExecuteNonQuery();
+                }
+
+                // Actualizar la caja según el tipo de movimiento
+                if (tipoMovimientoActual == "SALIDA")
+                {
+                    montoAperturaActual -= monto;
+                    lblCajaEfectivo.Text = montoAperturaActual.ToString("C");
+                }
+
+                gridMovimiento.Visibility = Visibility.Collapsed;
+                CargarMovimientos();
+                MostrarAlerta($"✅ {tipoMovimientoActual.ToLower()} de ${monto:F2} registrada correctamente.");
+            }
+            catch (Exception ex)
+            {
+                MostrarAlerta($"❌ Error al registrar movimiento:\n\n{ex.Message}");
+            }
+        }
+
+        private void BtnCancelarMovimiento_Click(object sender, RoutedEventArgs e)
+        {
+            gridMovimiento.Visibility = Visibility.Collapsed;
+        }
     }
 
     public class Producto {
@@ -1364,5 +1599,21 @@ namespace KioscoApp
         public string Telefono { get; set; }= "";
     }
 
+    public class MovimientoCaja
+    {
+        public int Id { get; set; }
+        public DateTime Fecha { get; set; }
+        public string Tipo { get; set; } = ""; // ENTRADA o SALIDA
+        public string Categoria { get; set; } = ""; // Proveedor, Extracción Personal, etc.
+        public decimal Monto { get; set; }
+        public string Descripcion { get; set; } = "";
+        public int SesionId { get; set; }
+
+        public string FechaTexto => Fecha.ToString("HH:mm");
+        public string TipoColor => Tipo == "ENTRADA" ? "#4CAF50" : "#F44336";
+        public string MontoTexto => $"{(Tipo == "ENTRADA" ? "+" : "-")}$ {Monto:F2}";
+    }
+
 }
+    
     
