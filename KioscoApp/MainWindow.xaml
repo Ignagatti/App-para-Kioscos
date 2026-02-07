@@ -228,6 +228,7 @@
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
@@ -251,15 +252,47 @@
                             </StackPanel>
                         </Border>
                     </UniformGrid>
-                    <DataGrid Grid.Row="1" x:Name="dgHistorialVentas" AutoGenerateColumns="False" CanUserAddRows="False" Margin="0,0,0,15">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat='HH:mm'}" Width="80"/>
-                            <DataGridTextColumn Header="Método" Binding="{Binding MetodoPago}" Width="120"/>
-                            <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ #,##0'}" Width="120"/>
-                            <DataGridTextColumn Header="Detalle" Binding="{Binding DetalleTexto}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <Button Grid.Row="2" Content="🔒 CERRAR CAJA" Click="BtnCerrarCaja_Click" Style="{StaticResource ModernButton}" Background="#E53935" Height="50"/>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+                        <TextBlock Text="💰 MOVIMIENTOS DE CAJA" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                        <Button Content="➕ ENTRADA" Click="BtnRegistrarEntrada_Click" Background="#4CAF50" Foreground="White" Margin="20,0,10,0" Height="35" Padding="10,5"/>
+                        <Button Content="➖ SALIDA" Click="BtnRegistrarSalida_Click" Background="#F44336" Foreground="White" Height="35" Padding="10,5"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="350"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <TextBlock Text="HISTORIAL DE VENTAS" FontWeight="Bold" Foreground="#333" FontSize="14" Margin="0,0,0,10"/>
+                            <DataGrid x:Name="dgHistorialVentas" AutoGenerateColumns="False" CanUserAddRows="False" Height="400">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat='HH:mm'}" Width="80"/>
+                                    <DataGridTextColumn Header="Método" Binding="{Binding MetodoPago}" Width="120"/>
+                                    <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ #,##0'}" Width="120"/>
+                                    <DataGridTextColumn Header="Detalle" Binding="{Binding DetalleTexto}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+
+                        <Border Grid.Column="1" Background="White" CornerRadius="10" Padding="15" BorderBrush="#E0E0E0" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="ENTRADAS/SALIDAS" FontWeight="Bold" Foreground="#333" FontSize="13" Margin="0,0,0,10"/>
+                                <DataGrid x:Name="dgMovimientos" AutoGenerateColumns="False" CanUserAddRows="False" Height="400">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Hora" Binding="{Binding FechaTexto}" Width="50"/>
+                                        <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="70"/>
+                                        <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="100"/>
+                                        <DataGridTextColumn Header="Monto" Binding="{Binding MontoTexto}" Width="90"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Button Grid.Row="3" Content="🔒 CERRAR CAJA" Click="BtnCerrarCaja_Click" Style="{StaticResource ModernButton}" Background="#E53935" Height="50" Margin="0,20,0,0"/>
                 </Grid>
             </TabItem>
 
@@ -330,9 +363,17 @@
                                 <TextBlock x:Name="lblClienteSeleccionado" Text="Seleccionado: Juan Perez" FontSize="16" FontWeight="Bold" Margin="0,0,0,10" TextAlignment="Center"/>
                                 
                                 <TextBlock Text="Monto:" FontSize="14" Foreground="Gray"/>
-                                <TextBox x:Name="txtMontoFiado" FontSize="20" Padding="5" HorizontalContentAlignment="Center" PreviewTextInput="TxtGramosPeso_PreviewTextInput"/>
+                                <TextBox x:Name="txtMontoFiado" FontSize="20" Padding="5" HorizontalContentAlignment="Center" PreviewTextInput="TxtGramosPeso_PreviewTextInput" Margin="0,0,0,10"/>
 
-                                <Grid Margin="0,15,0,0">
+                                <TextBlock Text="Método de Pago:" FontSize="14" Foreground="Gray" Margin="0,0,0,5"/>
+                                <ComboBox x:Name="cbMetodoPagoCobro" FontSize="14" Padding="8" SelectedIndex="0" Margin="0,0,0,15">
+                                    <ComboBoxItem Content="Efectivo"/>
+                                    <ComboBoxItem Content="Débito"/>
+                                    <ComboBoxItem Content="Crédito"/>
+                                    <ComboBoxItem Content="QR / Transferencia"/>
+                                </ComboBox>
+
+                                <Grid Margin="0,0,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
@@ -415,6 +456,10 @@
                     <TextBox x:Name="txtPagaCon" FontSize="28" Height="50" TextAlignment="Center" Margin="0,0,0,10"
                             TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"
                             PreviewTextInput="TxtGramosPeso_PreviewTextInput"/>
+
+                    <Border x:Name="borderErrorPago" Background="#FFEBEE" CornerRadius="8" Padding="12" Margin="0,0,0,15" Visibility="Collapsed">
+                        <TextBlock x:Name="lblErrorPago" Text="❌ No alcanza el dinero" TextWrapping="Wrap" TextAlignment="Center" Foreground="#D32F2F" FontSize="14" FontWeight="Bold"/>
+                    </Border>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,25">
                         <TextBlock Text="Su Vuelto: " FontSize="20" Foreground="#666"/>
@@ -565,6 +610,53 @@
                         
                         <Button Content="¡Sí, Borrar!" Click="BtnConfirmarEliminar_Click" 
                                 Width="120" Height="35" Background="#D32F2F" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="Bold">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="gridMovimiento" Visibility="Collapsed" Panel.ZIndex="1000">
+            <Border Background="Black" Opacity="0.5" MouseDown="BtnCancelarMovimiento_Click"/>
+            
+            <Border Background="White" Width="420" CornerRadius="15" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+                </Border.Effect>
+                
+                <Grid Margin="30">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock x:Name="lblTituloMovimiento" Text="💰 REGISTRAR MOVIMIENTO" FontSize="20" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    
+                    <TextBlock Grid.Row="1" Text="Categoría:" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <ComboBox Grid.Row="2" x:Name="cbCategoriaMov" FontSize="14" Height="38" Margin="0,0,0,15">
+                        <ComboBoxItem Content="Pago a Proveedor"/>
+                        <ComboBoxItem Content="Extracción Personal"/>
+                        <ComboBoxItem Content="Cambio Banco"/>
+                        <ComboBoxItem Content="Compra Artículos"/>
+                        <ComboBoxItem Content="Otro"/>
+                    </ComboBox>
+                    
+                    <TextBlock Grid.Row="3" Text="Monto ($):" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <TextBox Grid.Row="4" x:Name="txtMontoMov" FontSize="18" Height="40" TextAlignment="Center" PreviewTextInput="TxtGramosPeso_PreviewTextInput" Margin="0,0,0,15"/>
+                    
+                    <TextBlock Grid.Row="5" Text="Descripción (opcional):" FontSize="13" Foreground="#777" Margin="0,0,0,5"/>
+                    <TextBox x:Name="txtDescripcionMov" FontSize="12" Height="60" TextWrapping="Wrap" Margin="0,0,0,20" Padding="8"/>
+                    
+                    <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Cancelar" Click="BtnCancelarMovimiento_Click" Width="110" Height="40" Background="#EEE" Foreground="#555" Margin="0,0,10,0" BorderThickness="0">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                        </Button>
+                        <Button Content="Guardar" Click="BtnGuardarMovimiento_Click" Width="110" Height="40" Background="#4CAF50" Foreground="White" BorderThickness="0">
                             <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                         </Button>
                     </StackPanel>
