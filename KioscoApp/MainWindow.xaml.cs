@@ -38,6 +38,7 @@ namespace KioscoApp
             Thread.CurrentThread.CurrentUICulture = new CultureInfo("es-AR");
 
             InitializeComponent();
+            CargarClientes();
             dgCarrito.ItemsSource = carrito;
             InicializarBaseDatos();
             VerificarEstadoCaja();
@@ -88,6 +89,19 @@ namespace KioscoApp
                     }
                 } catch (Exception ex) { 
                     MessageBox.Show($"Error agregando columna es_por_kilo: {ex.Message}");
+                }
+
+                string sqlClientes = @"
+                    CREATE TABLE IF NOT EXISTS Clientes (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Nombre TEXT NOT NULL,
+                        Saldo DECIMAL DEFAULT 0,
+                        Telefono TEXT
+                    );";
+                    
+                using (SqliteCommand cmd = new SqliteCommand(sqlClientes, conn))
+                {
+                    cmd.ExecuteNonQuery();
                 }
 
                 try {
@@ -1078,6 +1092,129 @@ namespace KioscoApp
             if (e.Key == Key.Escape) gridStockInput.Visibility = Visibility.Collapsed;
         }
 
+        // 1. Cargar Clientes al iniciar o al cambiar de pestaña
+        private void CargarClientes()
+        {
+            try
+            {
+                List<Cliente> lista = new List<Cliente>();
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    SqliteCommand cmd = new SqliteCommand("SELECT Id, Nombre, Saldo FROM Clientes ORDER BY Nombre", conn);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            lista.Add(new Cliente
+                            {
+                                Id = reader.GetInt32(0),
+                                Nombre = reader.GetString(1),
+                                Saldo = reader.GetDecimal(2)
+                            });
+                        }
+                    }
+                }
+                dgClientes.ItemsSource = lista;
+            }
+            catch (Exception ex)
+            {
+                MostrarAlerta($"❌ Error al cargar clientes:\n\n{ex.Message}");
+            }
+        }
+
+        // 2. Crear un Cliente Nuevo
+        private void BtnCrearCliente_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtNombreCliente.Text)) { MostrarAlerta("⚠️ Poné un nombre del cliente."); return; }
+
+            try
+            {
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    SqliteCommand cmd = new SqliteCommand("INSERT INTO Clientes (Nombre, Saldo) VALUES (@nombre, 0)", conn);
+                    cmd.Parameters.AddWithValue("@nombre", txtNombreCliente.Text);
+                    cmd.ExecuteNonQuery();
+                }
+                
+                string nombreNuevo = txtNombreCliente.Text;
+                txtNombreCliente.Clear();
+                CargarClientes(); // Recargar la lista
+                MostrarAlerta($"✅ Cliente '{nombreNuevo}' creado exitosamente.");
+            }
+            catch (Exception ex)
+            {
+                MostrarAlerta($"❌ Error al crear cliente:\n\n{ex.Message}");
+            }
+        }
+
+        // 3. Cuando seleccionás a alguien en la tabla
+        private void DgClientes_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (dgClientes.SelectedItem is Cliente cliente)
+            {
+                panelDeuda.Visibility = Visibility.Visible;
+                lblInfoSeleccion.Visibility = Visibility.Collapsed;
+                lblClienteSeleccionado.Text = $"👤 {cliente.Nombre}";
+                txtMontoFiado.Focus();
+            }
+            else
+            {
+                panelDeuda.Visibility = Visibility.Collapsed;
+                lblInfoSeleccion.Visibility = Visibility.Visible;
+            }
+        }
+
+        // 4. Botón FIAR (Aumentar Deuda)
+        private void BtnFiar_Click(object sender, RoutedEventArgs e) => ModificarSaldo(1);
+
+        // 5. Botón PAGAR (Disminuir Deuda)
+        private void BtnPagarDeuda_Click(object sender, RoutedEventArgs e) => ModificarSaldo(-1);
+
+        // Lógica compartida para sumar o restar plata
+        private void ModificarSaldo(int factor)
+        {
+            if (dgClientes.SelectedItem is Cliente cliente && decimal.TryParse(txtMontoFiado.Text, out decimal monto))
+            {
+                // Validación: al pagar, no puede quedar negativo
+                if (factor == -1) // Si es un pago (factor -1)
+                {
+                    decimal nuevoSaldo = cliente.Saldo - monto;
+                    if (nuevoSaldo < 0)
+                    {
+                        MostrarAlerta($"⚠️ No puedés pagar más de lo que debe.\n\nDeuda actual: ${cliente.Saldo:F2}\nIntentás pagar: ${monto:F2}\n\nPodés pagar máximo: ${cliente.Saldo:F2}");
+                        return;
+                    }
+                }
+
+                try
+                {
+                    using (SqliteConnection conn = GetConnection())
+                    {
+                        conn.Open();
+                        SqliteCommand cmd = new SqliteCommand("UPDATE Clientes SET Saldo = Saldo + @monto WHERE Id = @id", conn);
+                        // Si factor es 1 suma, si es -1 resta
+                        cmd.Parameters.AddWithValue("@monto", monto * factor);
+                        cmd.Parameters.AddWithValue("@id", cliente.Id);
+                        cmd.ExecuteNonQuery();
+                    }
+                    txtMontoFiado.Clear();
+                    CargarClientes(); // Actualizar tabla para ver el nuevo saldo
+                    string accion = factor == 1 ? "fiado" : "pagado";
+                    MostrarAlerta($"✅ ${monto:F2} {accion}.\n\nDeuda actualizada.");
+                }
+                catch (Exception ex)
+                {
+                    MostrarAlerta($"❌ Error al modificar saldo:\n\n{ex.Message}");
+                }
+            }
+            else
+            {
+                MostrarAlerta("⚠️ Seleccioná un cliente e ingresá un monto válido.");
+            }
+        }
+
         private void ImprimirTicket(long nroVenta, decimal total, decimal pago, decimal vuelto)
         {
             try
@@ -1218,6 +1355,14 @@ namespace KioscoApp
     public decimal Total { get; set; }
     public string DetalleTexto { get; set; } = "";
 }
-    
+
+    public class Cliente
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; }= "";
+        public decimal Saldo { get; set; } // Lo que te debe
+        public string Telefono { get; set; }= "";
+    }
+
 }
     
