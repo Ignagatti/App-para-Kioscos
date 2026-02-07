@@ -187,15 +187,6 @@
                                 <DataGridTextColumn Header="Código" Binding="{Binding CodigoBarras}" Width="150" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Producto" Binding="{Binding Nombre}" Width="*" IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="150" IsReadOnly="True"/>
-                                <DataGridTemplateColumn Header="Estado" Width="80">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Grid ToolTip="{Binding Stock, StringFormat='Stock: {0}'}">
-                                            <Ellipse Width="15" Height="15" HorizontalAlignment="Center" 
-                                                    Fill="{Binding ColorEstado}"/> </Grid>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Precio ($)" Binding="{Binding PrecioEfectivo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat='C'}" Width="120"/>
                                 <DataGridTextColumn Header="Stock" Binding="{Binding Stock, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
                                 <DataGridTemplateColumn Header="Acciones" Width="Auto">
@@ -228,7 +219,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             </DataGrid.Columns>
-                        </DataGrid>
+                            </DataGrid>
                     </Border>
                 </Grid>
             </TabItem>
@@ -296,6 +287,72 @@
                             <DataGridTextColumn Header="TOTAL" Binding="{Binding TotalDia, StringFormat='$ #,##0'}" Width="*" FontWeight="Bold"/>
                         </DataGrid.Columns>
                     </DataGrid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="CLIENTES / FIADOS" Background="#E1BEE7" FontSize="16" FontWeight="Bold">
+                <Grid Margin="20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>     <ColumnDefinition Width="350"/>   </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Margin="0,0,20,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Text="👥 Lista de Clientes" FontSize="22" FontWeight="Bold" Margin="0,0,0,10"/>
+                        
+                        <DataGrid x:Name="dgClientes" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" 
+                                SelectionMode="Single" SelectionChanged="DgClientes_SelectionChanged"
+                                HeadersVisibility="Column" GridLinesVisibility="Horizontal" RowHeight="40">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nombre" Binding="{Binding Nombre}" Width="*" FontSize="16"/>
+                                <DataGridTextColumn Header="Deuda ($)" Binding="{Binding Saldo, StringFormat=C}" Width="120" FontSize="16" FontWeight="Bold"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+
+                    <Border Grid.Column="1" Background="White" CornerRadius="10" Padding="20">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="15" Opacity="0.2"/>
+                        </Border.Effect>
+                        
+                        <StackPanel>
+                            <TextBlock Text="➕ Nuevo Cliente" FontSize="18" FontWeight="Bold" Foreground="#673AB7" Margin="0,0,0,10"/>
+                            <TextBox x:Name="txtNombreCliente" FontSize="16" Padding="5" Tag="Nombre y Apellido"/>
+                            <Button Content="Crear Cliente" Click="BtnCrearCliente_Click" Background="#673AB7" Foreground="White" Margin="0,10,0,30" Height="35">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                            </Button>
+
+                            <Separator Margin="0,0,0,20"/>
+
+                            <StackPanel x:Name="panelDeuda" Visibility="Collapsed">
+                                <TextBlock x:Name="lblClienteSeleccionado" Text="Seleccionado: Juan Perez" FontSize="16" FontWeight="Bold" Margin="0,0,0,10" TextAlignment="Center"/>
+                                
+                                <TextBlock Text="Monto:" FontSize="14" Foreground="Gray"/>
+                                <TextBox x:Name="txtMontoFiado" FontSize="20" Padding="5" HorizontalContentAlignment="Center" PreviewTextInput="TxtGramosPeso_PreviewTextInput"/>
+
+                                <Grid Margin="0,15,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <Button Grid.Column="0" Content="FIAR (+)" Click="BtnFiar_Click" Background="#F44336" Foreground="White" Height="50" Margin="0,0,5,0" FontSize="16" FontWeight="Bold">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                                    </Button>
+                                    
+                                    <Button Grid.Column="1" Content="PAGAR (-)" Click="BtnPagarDeuda_Click" Background="#4CAF50" Foreground="White" Height="50" Margin="5,0,0,0" FontSize="16" FontWeight="Bold">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                            
+                            <TextBlock x:Name="lblInfoSeleccion" Text="👈 Seleccioná un cliente de la lista para gestionar su deuda." 
+                                    TextWrapping="Wrap" Foreground="Gray" Margin="0,20,0,0" FontStyle="Italic" HorizontalAlignment="Center"/>
+
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </TabItem>
         </TabControl>
