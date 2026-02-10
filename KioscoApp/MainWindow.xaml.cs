@@ -70,9 +70,8 @@ namespace KioscoApp
                     cmd.ExecuteNonQuery();
                 }
 
-                // Agregar columnas nuevas si no existen
+                // Agregar columna 'es_por_kilo' a productos si no existe
                 try {
-                    // Verificar si la columna es_por_kilo existe
                     SqliteCommand checkCol1 = new SqliteCommand("PRAGMA table_info(productos)", conn);
                     bool hasEsPorKilo = false;
                     using (var reader = checkCol1.ExecuteReader()) {
@@ -91,6 +90,7 @@ namespace KioscoApp
                     MessageBox.Show($"Error agregando columna es_por_kilo: {ex.Message}");
                 }
 
+                // Tabla Clientes
                 string sqlClientes = @"
                     CREATE TABLE IF NOT EXISTS Clientes (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,6 +104,7 @@ namespace KioscoApp
                     cmd.ExecuteNonQuery();
                 }
 
+                // Tabla Movimientos
                 string sqlMovimientos = @"
                     CREATE TABLE IF NOT EXISTS Movimientos_Caja (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,8 +121,8 @@ namespace KioscoApp
                     cmd.ExecuteNonQuery();
                 }
 
+                // Agregar columna 'precio_por_kilo' a productos si no existe
                 try {
-                    // Verificar si la columna precio_por_kilo existe
                     SqliteCommand checkCol2 = new SqliteCommand("PRAGMA table_info(productos)", conn);
                     bool hasPrecioPorKilo = false;
                     using (var reader = checkCol2.ExecuteReader()) {
@@ -138,6 +139,27 @@ namespace KioscoApp
                     }
                 } catch (Exception ex) { 
                     MessageBox.Show($"Error agregando columna precio_por_kilo: {ex.Message}");
+                }
+
+                // --- NUEVO: Agregar columna 'cliente_id' a ventas si no existe (PARA EL FIADO) ---
+                try {
+                    SqliteCommand checkCol3 = new SqliteCommand("PRAGMA table_info(ventas)", conn);
+                    bool hasClienteId = false;
+                    using (var reader = checkCol3.ExecuteReader()) {
+                        while (reader.Read()) {
+                            if (reader.GetString(1) == "cliente_id") {
+                                hasClienteId = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!hasClienteId) {
+                        // Agregamos la columna cliente_id permitiendo nulos (NULL)
+                        SqliteCommand addCol3 = new SqliteCommand("ALTER TABLE ventas ADD COLUMN cliente_id INTEGER DEFAULT NULL", conn);
+                        addCol3.ExecuteNonQuery();
+                    }
+                } catch (Exception ex) { 
+                    MessageBox.Show($"Error agregando columna cliente_id: {ex.Message}");
                 }
             }
         }
@@ -182,28 +204,159 @@ namespace KioscoApp
             } catch { }
         }
 
+        private void CbMetodoPago_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // --- CORRECCIÓN: Evitar error al iniciar la ventana ---
+            if (panelCliente == null || panelPagoEfectivo == null || cbSelectorCliente == null || txtPagaCon == null) 
+                return; 
+            // -----------------------------------------------------
+
+            // Obtenemos el texto de lo que se seleccionó
+            string metodo = "";
+            var item = cbMetodoPago.SelectedItem;
+            
+            if (item is ComboBoxItem cbi) metodo = cbi.Content?.ToString() ?? "";
+            else if (item is TextBlock tb) metodo = tb.Text;
+            else if (item != null) metodo = item.ToString() ?? "";
+
+            // Lógica de visualización
+            if (metodo == "Fiado")
+            {
+                panelCliente.Visibility = Visibility.Visible;      // Mostrar Cliente
+                panelPagoEfectivo.Visibility = Visibility.Collapsed; // Ocultar Paga Con
+                
+                // Enfocar el combo de clientes automáticamente
+                cbSelectorCliente.Focus();
+            }
+            else
+            {
+                panelCliente.Visibility = Visibility.Collapsed;    // Ocultar Cliente
+                panelPagoEfectivo.Visibility = Visibility.Visible;   // Mostrar Paga Con
+                
+                // Si es efectivo, enfocamos el campo de pago
+                if (gridCobro.Visibility == Visibility.Visible) 
+                    txtPagaCon.Focus();
+            }
+        }
+
+        // 1. Activa el modo "Crear Cliente" (Oculta el combo, muestra el textbox)
+        private void BtnModoCrearCliente_Click(object sender, RoutedEventArgs e)
+        {
+            gridSeleccionCliente.Visibility = Visibility.Collapsed;
+            gridCrearClienteRapido.Visibility = Visibility.Visible;
+            txtNuevoClienteRapido.Clear();
+            txtNuevoClienteRapido.Focus();
+        }
+
+        // 2. Cancela y vuelve al combo
+        private void BtnCancelarClienteRapido_Click(object sender, RoutedEventArgs e)
+        {
+            gridCrearClienteRapido.Visibility = Visibility.Collapsed;
+            gridSeleccionCliente.Visibility = Visibility.Visible;
+        }
+
+        // 3. Guarda el cliente, recarga la lista y lo deja seleccionado
+        private void BtnGuardarClienteRapido_Click(object sender, RoutedEventArgs e)
+        {
+            string nombre = txtNuevoClienteRapido.Text.Trim();
+            if (string.IsNullOrEmpty(nombre)) return;
+
+            try
+            {
+                long nuevoId = 0;
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    // Insertamos y recuperamos el ID generado al mismo tiempo
+                    SqliteCommand cmd = new SqliteCommand("INSERT INTO Clientes (Nombre, Saldo) VALUES (@n, 0); SELECT last_insert_rowid();", conn);
+                    cmd.Parameters.AddWithValue("@n", nombre);
+                    nuevoId = (long)cmd.ExecuteScalar();
+                }
+
+                // --- Recargar el Combo ---
+                // Copiamos la lógica de CargarClientes pero solo para este combo
+                using (SqliteConnection conn = GetConnection())
+                {
+                    conn.Open();
+                    SqliteCommand cmd = new SqliteCommand("SELECT Id, Nombre FROM Clientes ORDER BY Nombre", conn);
+                    var clientesCobro = new List<Cliente>();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            clientesCobro.Add(new Cliente { Id = r.GetInt32(0), Nombre = r.GetString(1) });
+                        }
+                    }
+                    cbSelectorCliente.ItemsSource = clientesCobro;
+                }
+
+                // --- Volver a la vista normal ---
+                gridCrearClienteRapido.Visibility = Visibility.Collapsed;
+                gridSeleccionCliente.Visibility = Visibility.Visible;
+
+                // --- Seleccionar automáticamente al nuevo ---
+                cbSelectorCliente.SelectedValue = (int)nuevoId;
+                
+                // Actualizar también la tabla principal de clientes por si está visible de fondo
+                CargarClientes();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al crear cliente: " + ex.Message);
+            }
+        }
+
         private void FinalizarVenta() {
             if (carrito.Count == 0) return;
 
-            // --- VALIDACIÓN DE PAGO ---
-            if (!decimal.TryParse(txtPagaCon.Text, out decimal montoPago) || montoPago <= 0)
-            {
-                MostrarErrorPago("⚠️ Ingresá un monto válido para el pago.");
-                return;
-            }
+            // --- CORRECCIÓN CLAVE: LECTURA SEGURA DEL MÉTODO DE PAGO ---
+            string metodoPago = "Efectivo"; 
+            var itemSeleccionado = cbMetodoPago.SelectedItem;
 
-            if (montoPago < totalVenta)
-            {
-                decimal falta = totalVenta - montoPago;
-                MostrarErrorPago($"❌ Falta: ${falta:F2}");
-                return;
-            }
+            if (itemSeleccionado is ComboBoxItem cbi)
+                metodoPago = cbi.Content?.ToString() ?? "Efectivo";
+            else if (itemSeleccionado is TextBlock tb)
+                metodoPago = tb.Text;
+            else if (itemSeleccionado != null)
+                metodoPago = itemSeleccionado.ToString() ?? "Efectivo";
+            // -----------------------------------------------------------
 
-            // Limpiar error si la validación pasó
+            int? clienteIdSeleccionado = null;
+
+            // --- LÓGICA ESPECIAL PARA FIADO ---
+            if (metodoPago == "Fiado")
+            {
+                // Validar que haya seleccionado un cliente
+                if (cbSelectorCliente.SelectedItem is Cliente cliente)
+                {
+                    clienteIdSeleccionado = cliente.Id;
+                    // Para fiado, no validamos el "Paga Con" porque no entra plata ahora
+                }
+                else
+                {
+                    MostrarErrorPago("⚠️ Para fiar, tenés que seleccionar un CLIENTE de la lista.");
+                    return;
+                }
+            }
+            else 
+            {
+                // Lógica normal de pago (Efectivo/Transferencia)
+                if (!decimal.TryParse(txtPagaCon.Text, out decimal montoPago) || montoPago <= 0)
+                {
+                    MostrarErrorPago("⚠️ Ingresá un monto válido para el pago.");
+                    return;
+                }
+                if (montoPago < totalVenta)
+                {
+                    decimal falta = totalVenta - montoPago;
+                    MostrarErrorPago($"❌ Falta: ${falta:F2}");
+                    return;
+                }
+            }
+            
             borderErrorPago.Visibility = Visibility.Collapsed;
 
             // --- PASO 1: VALIDACIÓN DE STOCK ---
-            // Agrupamos para saber cuánto necesitamos de cada producto (si es por kilo sumamos kilos; si es unidad sumamos 1)
             var productosRequeridos = carrito
                 .GroupBy(p => p.Id)
                 .Select(g => new { Id = g.Key, CantidadRequerida = g.Sum(p => p.EsPorKilo ? p.Peso / 1000m : 1m) })
@@ -212,100 +365,89 @@ namespace KioscoApp
             using (SqliteConnection conn = GetConnection()) {
                 conn.Open();
 
-                // Revisamos producto por producto si hay stock suficiente
+                // Validar Stock
                 foreach (var item in productosRequeridos) {
-                    // Ignoramos productos que no estén en BD (Id 0 o manuales sin control)
                     if (item.Id <= 0) continue;
-
                     SqliteCommand cmdCheck = new SqliteCommand("SELECT nombre, stock FROM productos WHERE id = @id", conn);
                     cmdCheck.Parameters.AddWithValue("@id", item.Id);
-
                     using (var reader = cmdCheck.ExecuteReader()) {
                         if (reader.Read()) {
-                            string nombre = reader.GetString(0);
-                            decimal stockActual = reader.GetDecimal(1);
-
-                            // Si lo que tengo es MENOR a lo que quiero vender... ¡ERROR!
-                            if (stockActual < item.CantidadRequerida) {
-                                MostrarAlerta($"¡No hay suficiente stock de '{nombre}'!\n\nStock actual: {stockActual}\nIntentás vender: {item.CantidadRequerida}\n\nLa venta fue cancelada.");
-                                return; // <--- ESTO ES LA CLAVE: Corta la función y no vende nada.
+                            if (reader.GetDecimal(1) < item.CantidadRequerida) {
+                                MostrarAlerta($"¡No hay suficiente stock de '{reader.GetString(0)}'!");
+                                return;
                             }
                         }
                     }
                 }
             
-                // --- PASO 2: SI LLEGAMOS ACÁ, HAY STOCK. PROCEDEMOS A VENDER ---
-                string m = (cbMetodoPago.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Efectivo";
-                
+                // --- PASO 2: PROCESAR VENTA ---
                 long idVenta = 0;
                 using (SqliteTransaction t = conn.BeginTransaction()) {
                     bool committed = false;
                     try {
-                        // 1. Crear la Venta (Cabecera)
-                        SqliteCommand cV = new SqliteCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id) VALUES (@t, @c, @m, @sid); SELECT last_insert_rowid();", conn, t);
+                        // A. Insertar Venta (Ahora con cliente_id)
+                        SqliteCommand cV = new SqliteCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id, cliente_id) VALUES (@t, @c, @m, @sid, @cid); SELECT last_insert_rowid();", conn, t);
                         cV.Parameters.AddWithValue("@t", totalVenta);
                         cV.Parameters.AddWithValue("@c", carrito.Count);
-                        cV.Parameters.AddWithValue("@m", m);
+                        cV.Parameters.AddWithValue("@m", metodoPago);
                         cV.Parameters.AddWithValue("@sid", sesionIdActiva);
+                        cV.Parameters.AddWithValue("@cid", clienteIdSeleccionado.HasValue ? (object)clienteIdSeleccionado.Value : DBNull.Value);
                         idVenta = Convert.ToInt64(cV.ExecuteScalar());
 
-                        // 2. Guardar Detalles y Descontar Stock
+                        // B. Guardar Detalles y Descontar Stock
                         foreach (var p in carrito) {
-                            // Detalle: almacenamos precio por unidad (o por kg), cantidad correcta y subtotal
                             decimal cantidadDetalle = p.EsPorKilo ? (p.Peso / 1000m) : 1m;
                             decimal precioUnitario = p.EsPorKilo ? p.PrecioPorKilo : p.Precio;
-                            decimal subtotalDetalle = p.Subtotal;
 
                             SqliteCommand cD = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @precio, @cantidad, @subtotal)", conn, t);
                             cD.Parameters.AddWithValue("@id", idVenta);
                             cD.Parameters.AddWithValue("@n", p.Nombre);
                             cD.Parameters.AddWithValue("@precio", precioUnitario);
                             cD.Parameters.AddWithValue("@cantidad", cantidadDetalle);
-                            cD.Parameters.AddWithValue("@subtotal", subtotalDetalle);
+                            cD.Parameters.AddWithValue("@subtotal", p.Subtotal);
                             cD.ExecuteNonQuery();
 
-                            // Descuento de Stock (si el producto existe en BD)
                             if (p.Id > 0) {
-                                decimal qtyToSubtract = cantidadDetalle; // 1 para unidades, kilos para productos por kilo
                                 SqliteCommand cU = new SqliteCommand("UPDATE productos SET stock = stock - @q WHERE id = @pid", conn, t);
-                                cU.Parameters.AddWithValue("@q", qtyToSubtract);
+                                cU.Parameters.AddWithValue("@q", cantidadDetalle);
                                 cU.Parameters.AddWithValue("@pid", p.Id);
                                 cU.ExecuteNonQuery();
                             }
                         }
 
-                        t.Commit(); // Confirmar cambios en BD
+                        // C. SI ES FIADO -> AUMENTAR DEUDA DEL CLIENTE
+                        if (metodoPago == "Fiado" && clienteIdSeleccionado.HasValue)
+                        {
+                            SqliteCommand cDeuda = new SqliteCommand("UPDATE Clientes SET Saldo = Saldo + @total WHERE Id = @id", conn, t);
+                            cDeuda.Parameters.AddWithValue("@total", totalVenta);
+                            cDeuda.Parameters.AddWithValue("@id", clienteIdSeleccionado.Value);
+                            cDeuda.ExecuteNonQuery();
+                        }
+
+                        t.Commit();
                         committed = true;
 
                     } catch (Exception ex) {
-                        // Intentamos rollback sólo si no se confirmó la transacción
-                        if (!committed) {
-                            try { t.Rollback(); } catch { /* Ignorar errores de rollback */ }
-                        }
-
+                        if (!committed) try { t.Rollback(); } catch {}
                         MostrarAlerta("Error al procesar venta: " + ex.Message);
-                        return; // Salir del método para no continuar con impresión/limpieza
+                        return;
                     }
                 }
 
-                // Fuera de la transacción: ahora podemos imprimir y actualizar UI sin interferir con la transacción
-                decimal vuelto = montoPago - totalVenta;
-
-                if (chkImprimirTicket.IsChecked == true)
-                {
-                    try { ImprimirTicket(idVenta, totalVenta, montoPago, vuelto); } catch (Exception ex) { MostrarAlerta("No se pudo imprimir el ticket: " + ex.Message); }
+                // Imprimir ticket
+                if (chkImprimirTicket.IsChecked == true) {
+                    decimal pagoReal = metodoPago == "Fiado" ? 0 : (decimal.TryParse(txtPagaCon.Text, out decimal p) ? p : totalVenta);
+                    try { ImprimirTicket(idVenta, totalVenta, pagoReal, pagoReal - totalVenta); } catch {}
                 }
 
-                // Limpieza y actualización de UI
+                // Limpieza UI
                 carrito.Clear();
                 CalcularTotal();
                 gridCobro.Visibility = Visibility.Collapsed;
                 txtBarcodeVenta.Clear();
                 txtBarcodeVenta.Focus();
-
-                // Actualizar cajita de ventas
-                CargarCaja();
-
+                CargarCaja(); // Actualiza la caja visualmente
+                CargarClientes(); // Actualiza la tabla de clientes si está visible
             }
         }
 
@@ -444,7 +586,30 @@ namespace KioscoApp
             lblTotalCobro.Text = totalVenta.ToString("C2"); 
             txtPagaCon.Clear();
             lblVuelto.Text = "$ 0.00";
-            borderErrorPago.Visibility = Visibility.Collapsed;  // Limpiar error anterior
+            borderErrorPago.Visibility = Visibility.Collapsed;
+
+            // Cargar clientes (Igual que antes)
+            try {
+                using (SqliteConnection conn = GetConnection()) {
+                    conn.Open();
+                    SqliteCommand cmd = new SqliteCommand("SELECT Id, Nombre FROM Clientes ORDER BY Nombre", conn);
+                    var clientesCobro = new List<Cliente>();
+                    using (var r = cmd.ExecuteReader()) {
+                        while (r.Read()) {
+                            clientesCobro.Add(new Cliente { Id = r.GetInt32(0), Nombre = r.GetString(1) });
+                        }
+                    }
+                    cbSelectorCliente.ItemsSource = clientesCobro;
+                }
+            } catch {}
+
+            // Resetear selección
+            cbSelectorCliente.SelectedIndex = -1;
+            
+            // IMPORTANTE: Esto dispara el evento SelectionChanged que escribimos arriba
+            // y acomoda la visual (Oculta cliente, muestra efectivo)
+            cbMetodoPago.SelectedIndex = 0; 
+
             gridCobro.Visibility = Visibility.Visible; 
             txtPagaCon.Focus(); 
         }
@@ -620,18 +785,18 @@ namespace KioscoApp
                 {
                     conn.Open();
 
-                    // 1. Calcular totales (Efectivo vs Otros)
-                    SqliteCommand cmdVentas = new SqliteCommand(@"
+                    // 1. Calcular totales monetarios
+                    SqliteCommand cmdTotales = new SqliteCommand(@"
                         SELECT 
                             SUM(CASE WHEN metodo_pago = 'Efectivo' THEN total ELSE 0 END) as efectivo, 
                             SUM(CASE WHEN metodo_pago != 'Efectivo' THEN total ELSE 0 END) as otros 
                         FROM ventas 
                         WHERE sesion_id = @sid", conn);
                     
-                    cmdVentas.Parameters.AddWithValue("@sid", sesionIdActiva);
+                    cmdTotales.Parameters.AddWithValue("@sid", sesionIdActiva);
                     
                     decimal efectivo = 0, otros = 0;
-                    using (var r = cmdVentas.ExecuteReader())
+                    using (var r = cmdTotales.ExecuteReader())
                     {
                         if (r.Read())
                         {
@@ -642,52 +807,88 @@ namespace KioscoApp
                     
                     lblCajaEfectivo.Text = (montoAperturaActual + efectivo).ToString("C");
                     lblCajaOtros.Text = otros.ToString("C");
-                    // Total debe incluir el monto de apertura también
                     lblCajaTotal.Text = (montoAperturaActual + efectivo + otros).ToString("C");
 
-                    // 2. Traer el historial CON DETALLE (Adaptado para SQLite)
+                    // 2. Traer items individuales de la BD
                     string sql = @"
                         SELECT 
                             v.id, 
                             v.fecha, 
                             v.metodo_pago, 
                             v.total,
-                            GROUP_CONCAT(
-                                CASE 
-                                    WHEN vd.nombre = 'Pago de fiados' THEN vd.nombre
-                                    ELSE vd.nombre || ' (' || 
-                                        CASE 
-                                            WHEN vd.cantidad < 1 THEN CAST((vd.cantidad * 1000) AS INT) || ' gr'
-                                            ELSE CAST(vd.cantidad AS INT) || ' un.'
-                                        END || ')'
-                                END,
-                                ', '
-                            ) as detalle_completo
+                            vd.nombre,
+                            vd.cantidad
                         FROM ventas v
                         LEFT JOIN venta_detalles vd ON v.id = vd.venta_id
                         WHERE v.sesion_id = @sid
-                        GROUP BY v.id
                         ORDER BY v.fecha DESC";
 
                     SqliteCommand cmd = new SqliteCommand(sql, conn);
                     cmd.Parameters.AddWithValue("@sid", sesionIdActiva);
 
-                    var listaVentas = new List<VentaResumen>();
-                    
+                    var datosCrudos = new List<dynamic>();
+
                     using (var r = cmd.ExecuteReader())
                     {
                         while (r.Read())
                         {
-                            listaVentas.Add(new VentaResumen
-                            {
+                            datosCrudos.Add(new {
                                 Id = r.GetInt32(0),
                                 Fecha = r.GetDateTime(1),
                                 MetodoPago = r.GetString(2),
                                 Total = r.GetDecimal(3),
-                                DetalleTexto = r.IsDBNull(4) ? "Pago de fiados" : r.GetString(4)
+                                NombreProducto = r.IsDBNull(4) ? "Venta General" : r.GetString(4),
+                                Cantidad = r.IsDBNull(5) ? 0m : r.GetDecimal(5)
                             });
                         }
                     }
+
+                    // 3. Agrupar en memoria para generar el texto bonito (x2, gr, etc)
+                    var listaVentas = datosCrudos
+                        .GroupBy(x => x.Id)
+                        .Select(grupoVenta => {
+                            var ventaInfo = grupoVenta.First();
+                            
+                            // Agrupamos los productos POR NOMBRE dentro de la misma venta
+                            var detalles = grupoVenta
+                                .GroupBy(d => (string)d.NombreProducto) 
+                                .Select(prodGroup => {
+                                    string nombre = prodGroup.Key;
+                                    decimal cantTotal = prodGroup.Sum(x => (decimal)x.Cantidad);
+
+                                    if (nombre == "Pago de fiados") return nombre;
+
+                                    // Si es decimal o menor a 1, asumimos que es PESO (KG)
+                                    if (cantTotal % 1 != 0 || (cantTotal < 1 && cantTotal > 0)) 
+                                    {
+                                        int gramos = (int)(cantTotal * 1000);
+                                        string textoGramos = $"{gramos} gr";
+                                        if (!nombre.Contains(textoGramos) && !nombre.Contains($"{gramos}g"))
+                                        {
+                                            return $"{nombre} ({textoGramos})";
+                                        }
+                                        return nombre;
+                                    }
+                                    // Si es entero mayor a 1, es CANTIDAD (x2, x3...)
+                                    else if (cantTotal > 1) 
+                                    {
+                                        return $"{nombre} (x{(int)cantTotal})";
+                                    }
+                                    
+                                    // Si es 1 unidad simple
+                                    return nombre; 
+                                });
+
+                            return new VentaResumen
+                            {
+                                Id = ventaInfo.Id,
+                                Fecha = ventaInfo.Fecha,
+                                MetodoPago = ventaInfo.MetodoPago,
+                                Total = ventaInfo.Total,
+                                DetalleTexto = string.Join(", ", detalles)
+                            };
+                        }).ToList();
+
                     dgHistorialVentas.ItemsSource = listaVentas;
                     CargarMovimientos();
                 }
@@ -870,7 +1071,7 @@ namespace KioscoApp
                 decimal precioCalculado = kilosRequeridos * precioPorKiloActual;
                 carrito.Add(new Producto { 
                     Id = productoIdActual,
-                    Nombre = $"{productoPesoActual} ({gramos}g)", 
+                    Nombre = productoPesoActual,
                     Precio = Math.Round(precioCalculado, 2),
                     Peso = gramos,
                     EsPorKilo = true,
@@ -1588,7 +1789,8 @@ namespace KioscoApp
     public DateTime Fecha { get; set; }
     public string MetodoPago { get; set; } = "";
     public decimal Total { get; set; }
-    public string DetalleTexto { get; set; } = "";
+    
+    public string DetalleTexto { get; set; } = ""; 
 }
 
     public class Cliente
