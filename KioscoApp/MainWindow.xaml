@@ -310,7 +310,7 @@
                     </DataGrid>
                 </Grid>
             </TabItem>
-            <TabItem Header="CLIENTES / FIADOS" Background="#E1BEE7" FontSize="16" FontWeight="Bold">
+            <TabItem Header="CLIENTES / FIADOS" Background="#FFFFFF" FontSize="16" FontWeight="Bold">
                 <Grid Margin="20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>     <ColumnDefinition Width="350"/>   </Grid.ColumnDefinitions>
