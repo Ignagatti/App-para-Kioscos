@@ -250,12 +250,23 @@
 
                         <StackPanel Grid.Column="0" Margin="0,0,20,0">
                             <TextBlock Text="HISTORIAL DE VENTAS" FontWeight="Bold" Foreground="#333" FontSize="14" Margin="0,0,0,10"/>
-                            <DataGrid x:Name="dgHistorialVentas" AutoGenerateColumns="False" CanUserAddRows="False" Height="400">
+                            <DataGrid x:Name="dgHistorialVentas" 
+                                    AutoGenerateColumns="False" 
+                                    CanUserAddRows="False" 
+                                    IsReadOnly="True"
+                                    HeadersVisibility="Column"
+                                    GridLinesVisibility="Horizontal"
+                                    Background="White"
+                                    BorderBrush="#EEEEEE"
+                                    RowHeight="35">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat='HH:mm'}" Width="80"/>
-                                    <DataGridTextColumn Header="Método" Binding="{Binding MetodoPago}" Width="120"/>
-                                    <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ #,##0'}" Width="120"/>
-                                    <DataGridTextColumn Header="Detalle" Binding="{Binding DetalleTexto}" Width="*"/>
+                                    <DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat=HH:mm}" Width="60" FontWeight="SemiBold"/>
+                                    
+                                    <DataGridTextColumn Header="Detalle de Productos" Binding="{Binding DetalleTexto}" Width="*" />
+                                    
+                                    <DataGridTextColumn Header="Pago" Binding="{Binding MetodoPago}" Width="80"/>
+                                    
+                                    <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=C}" Width="90" FontWeight="Bold"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </StackPanel>
@@ -410,65 +421,146 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="gridCobro" Visibility="Collapsed" Panel.ZIndex="1000">
-            <Border Background="Black" Opacity="0.6" MouseDown="BtnCancelCobro_Click"/>
-
-            <Border Background="White" Width="400" CornerRadius="15" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="gridCobro" Visibility="Collapsed" Background="#99000000">
+    
+            <Border Width="380" Background="White" CornerRadius="15" 
+                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Padding="25">
+                
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.3"/>
                 </Border.Effect>
 
-                <StackPanel VerticalAlignment="Center" Margin="30">
-                    <TextBlock Text="Cobrar Venta" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                <StackPanel>
+                    <TextBlock Text="Confirmar Venta" FontSize="22" FontWeight="Bold" 
+                            Foreground="#333" HorizontalAlignment="Center" Margin="0,0,0,15"/>
 
                     <Border Background="#E8F5E9" CornerRadius="10" Padding="15" Margin="0,0,0,20">
-                        <StackPanel>
-                            <TextBlock Text="Total a Pagar" FontSize="14" Foreground="#4CAF50" HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="lblTotalCobro" Text="$ 0.00" FontSize="36" FontWeight="Bold" Foreground="#2E7D32" HorizontalAlignment="Center"/>
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="Total a Pagar" Foreground="#4CAF50" FontSize="14" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="lblTotalCobro" Text="$ 1.200,00" 
+                                    FontSize="36" FontWeight="Bold" Foreground="#2E7D32" 
+                                    HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
 
-                    <TextBlock Text="Método de Pago:" FontSize="14" Foreground="#666" Margin="0,0,0,5"/>
-                    <ComboBox x:Name="cbMetodoPago" FontSize="16" Padding="10" SelectedIndex="0" Margin="0,0,0,15">
-                        <ComboBoxItem Content="Efectivo"/>
+                    <TextBlock Text="Método de Pago" Foreground="#666" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="cbMetodoPago" Height="40" FontSize="16" Padding="10,0" 
+                            SelectionChanged="CbMetodoPago_SelectionChanged"
+                            Background="White" BorderBrush="#DDD" BorderThickness="1">
+                        <ComboBoxItem Content="Efectivo" IsSelected="True"/>
                         <ComboBoxItem Content="Débito"/>
                         <ComboBoxItem Content="Crédito"/>
                         <ComboBoxItem Content="QR / Transferencia"/>
-                    </ComboBox>
+                        <ComboBoxItem Content="Fiado" FontWeight="Bold" Foreground="#673AB7"/> </ComboBox>
 
-                    <CheckBox x:Name="chkImprimirTicket" Content="🖨️ Imprimir Ticket" 
-                            FontSize="16" Margin="0,5,0,15" 
-                            HorizontalAlignment="Center" Cursor="Hand"/>
+                    <CheckBox x:Name="chkImprimirTicket" Content="Imprimir Ticket" 
+                            Margin="0,15,0,0" Foreground="#666" FontSize="14" HorizontalAlignment="Center"/>
 
-                    <TextBlock Text="Paga con:" FontSize="18" Foreground="#666" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                    <TextBox x:Name="txtPagaCon" FontSize="28" Height="50" TextAlignment="Center" Margin="0,0,0,10"
-                            TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"
-                            PreviewTextInput="TxtGramosPeso_PreviewTextInput"/>
+                    <StackPanel x:Name="panelCliente" Visibility="Collapsed" Margin="0,15,0,0">
+                        <TextBlock Text="Cliente:" Foreground="#673AB7" FontWeight="Bold" Margin="0,0,0,5"/>
 
-                    <Border x:Name="borderErrorPago" Background="#FFEBEE" CornerRadius="8" Padding="12" Margin="0,0,0,15" Visibility="Collapsed">
-                        <TextBlock x:Name="lblErrorPago" Text="❌ No alcanza el dinero" TextWrapping="Wrap" TextAlignment="Center" Foreground="#D32F2F" FontSize="14" FontWeight="Bold"/>
-                    </Border>
+                        <Grid x:Name="gridSeleccionCliente">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="50"/>
+                            </Grid.ColumnDefinitions>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,25">
-                        <TextBlock Text="Su Vuelto: " FontSize="20" Foreground="#666"/>
-                        <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="20" FontWeight="Bold" Foreground="#333"/>
+                            <ComboBox x:Name="cbSelectorCliente" DisplayMemberPath="Nombre" SelectedValuePath="Id"
+                                    Height="40" FontSize="16" Padding="10,0"
+                                    Background="#F3E5F5" BorderBrush="#673AB7"/>
+
+                            <Button Grid.Column="1" Content="+" Click="BtnModoCrearCliente_Click"
+                                    Margin="5,0,0,0" Height="40" Background="#673AB7" Foreground="White"
+                                    FontSize="20" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="5"/>
+                                    </Style>
+                                </Button.Resources>
+                                <Button.ToolTip>Crear Nuevo Cliente Rápido</Button.ToolTip>
+                            </Button>
+                        </Grid>
+
+                        <Grid x:Name="gridCrearClienteRapido" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="40"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border BorderBrush="#673AB7" BorderThickness="1" CornerRadius="5" Background="White">
+                                <TextBox x:Name="txtNuevoClienteRapido" Height="40" FontSize="14" 
+                                        VerticalContentAlignment="Center" Padding="5" BorderThickness="0"
+                                        Tag="Nombre del nuevo cliente..."/>
+                            </Border>
+
+                            <Button Grid.Column="1" Content="✔" Click="BtnGuardarClienteRapido_Click"
+                                    Margin="5,0,0,0" Background="#4CAF50" Foreground="White"
+                                    FontSize="16" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border"> <Setter Property="CornerRadius" Value="5"/> </Style>
+                                </Button.Resources>
+                            </Button>
+
+                            <Button Grid.Column="2" Content="✕" Click="BtnCancelarClienteRapido_Click"
+                                    Margin="5,0,0,0" Background="#F44336" Foreground="White"
+                                    FontSize="14" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                <Button.Resources>
+                                    <Style TargetType="Border"> <Setter Property="CornerRadius" Value="5"/> </Style>
+                                </Button.Resources>
+                            </Button>
+                        </Grid>
+
+                        <TextBlock Text="* Seleccioná o creá un cliente para el fiado." FontSize="11" Foreground="#999" Margin="2,2,0,0"/>
                     </StackPanel>
 
-                    <Grid>
+                    <StackPanel x:Name="panelPagoEfectivo" Margin="0,15,0,0">
+                        <TextBlock Text="Paga con:" Foreground="#666" Margin="0,0,0,5" FontWeight="SemiBold"/>
+                        <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="5">
+                            <TextBox x:Name="txtPagaCon" Height="40" FontSize="18" VerticalContentAlignment="Center" 
+                                    Padding="5" BorderThickness="0" Background="Transparent"
+                                    TextChanged="TxtPagaCon_TextChanged" KeyDown="TxtPagaCon_KeyDown"/>
+                        </Border>
+                        
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5,0,0">
+                            <TextBlock Text="Vuelto: " FontSize="16" Foreground="#555"/>
+                            <TextBlock x:Name="lblVuelto" Text="$ 0.00" FontSize="16" FontWeight="Bold" Foreground="#333"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border x:Name="borderErrorPago" Background="#FFEBEE" CornerRadius="5" Padding="10" Margin="0,15,0,0" Visibility="Collapsed">
+                        <TextBlock x:Name="lblErrorPago" Text="Error en el pago" Foreground="#D32F2F" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Grid Margin="0,25,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="15"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         
-                        <Button Grid.Column="0" Content="Cancelar (Esc)" Click="BtnCancelCobro_Click" Height="45" Background="#FFEBEE" Foreground="#D32F2F" BorderThickness="0" FontSize="16" Cursor="Hand">
-                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+                        <Button x:Name="btnCancelCobro" Content="CANCELAR" Height="45"
+                                Click="BtnCancelCobro_Click" Background="#FFEBEE" Foreground="#D32F2F"
+                                BorderThickness="0" FontWeight="Bold" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="8"/>
+                                </Style>
+                            </Button.Resources>
                         </Button>
-                        
-                        <Button Grid.Column="2" Content="COBRAR (Enter)" Click="BtnConfirmarVenta_Click" Height="45" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="16" FontWeight="Bold" Cursor="Hand">
-                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="8"/></Style></Button.Resources>
+
+                        <Button x:Name="btnConfirmarVenta" Grid.Column="2" Content="COBRAR" Height="45"
+                                Click="BtnConfirmarVenta_Click" Background="#4CAF50" Foreground="White"
+                                BorderThickness="0" FontWeight="Bold" FontSize="16" Cursor="Hand">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="8"/>
+                                </Style>
+                            </Button.Resources>
                         </Button>
                     </Grid>
+                    
                 </StackPanel>
             </Border>
         </Grid>
