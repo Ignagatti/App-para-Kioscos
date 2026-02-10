@@ -13,6 +13,8 @@ using System.IO;
 using System.Threading;
 using System.Globalization;
 using System.Windows.Documents; // Necesario para imprimir en WPF
+using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace KioscoApp
 {
@@ -31,6 +33,13 @@ namespace KioscoApp
         private int productoIdActual = 0;
         private bool esperandoPeso = false;
         private decimal stockActualProducto = 0;
+        // Si true, las ventas usarán hora UTC; si false usarán la hora local del PC
+        private bool useUtcForSales = false;
+
+        private DateTime GetSaleTimestamp()
+        {
+            return useUtcForSales ? DateTime.UtcNow : DateTime.Now;
+        }
 
         public MainWindow()
         {
@@ -54,6 +63,16 @@ namespace KioscoApp
             };
         }
 
+        private string GetSqlScriptPath()
+        {
+            // Preferir el directorio del ejecutable (publicado) y luego el directorio actual
+            var candidate1 = Path.Combine(AppContext.BaseDirectory, "database_sqlite.sql");
+            if (File.Exists(candidate1)) return candidate1;
+            var candidate2 = Path.Combine(Environment.CurrentDirectory, "database_sqlite.sql");
+            if (File.Exists(candidate2)) return candidate2;
+            return candidate1; // devolver el primero por defecto (existirá en publish normalmente)
+        }
+
         private void InicializarBaseDatos()
         {
             // Crear la carpeta si no existe
@@ -64,13 +83,23 @@ namespace KioscoApp
             using (SqliteConnection conn = new SqliteConnection(connStrActiva))
             {
                 conn.Open();
-                string sql = File.ReadAllText("database_sqlite.sql");
-                using (SqliteCommand cmd = new SqliteCommand(sql, conn))
-                {
-                    cmd.ExecuteNonQuery();
+                try {
+                    string scriptPath = GetSqlScriptPath();
+                    if (File.Exists(scriptPath)) {
+                        string sql = File.ReadAllText(scriptPath);
+                        if (!string.IsNullOrWhiteSpace(sql)) {
+                            using (SqliteCommand cmd = new SqliteCommand(sql, conn)) {
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                    } else {
+                        Logger.LogError($"SQL script not found: {scriptPath}");
+                        // No interrumpimos: continuamos creando tablas necesarias manualmente
+                    }
+                } catch (Exception ex) {
+                    Logger.LogError("Error executing SQL script: " + ex.Message);
                 }
 
-                // Agregar columnas nuevas si no existen
                 try {
                     // Verificar si la columna es_por_kilo existe
                     SqliteCommand checkCol1 = new SqliteCommand("PRAGMA table_info(productos)", conn);
@@ -139,6 +168,20 @@ namespace KioscoApp
                 } catch (Exception ex) { 
                     MessageBox.Show($"Error agregando columna precio_por_kilo: {ex.Message}");
                 }
+                // Agregar columna 'archivado' a sesiones_caja para marcar cierres archivados
+                try {
+                    SqliteCommand checkArch = new SqliteCommand("PRAGMA table_info(sesiones_caja)", conn);
+                    bool hasArchivado = false;
+                    using (var reader = checkArch.ExecuteReader()) {
+                        while (reader.Read()) {
+                            if (reader.GetString(1) == "archivado") { hasArchivado = true; break; }
+                        }
+                    }
+                    if (!hasArchivado) {
+                        SqliteCommand addArch = new SqliteCommand("ALTER TABLE sesiones_caja ADD COLUMN archivado INTEGER DEFAULT 0", conn);
+                        addArch.ExecuteNonQuery();
+                    }
+                } catch (Exception ex) { Logger.LogError("Error agregando columna archivado: " + ex.Message); }
             }
         }
 
@@ -150,36 +193,40 @@ namespace KioscoApp
                     conn.Open();
                     SqliteCommand cmd = new SqliteCommand("SELECT id, monto_inicial FROM sesiones_caja WHERE estado = 'ABIERTA' LIMIT 1", conn);
                     using (var r = cmd.ExecuteReader()) {
-                        if (r.Read()) { 
-                            sesionIdActiva = r.GetInt32(0); 
-                            montoAperturaActual = r.GetDecimal(1); 
+                        if (r.Read()) {
+                            sesionIdActiva = r.IsDBNull(0) ? 0 : r.GetInt32(0);
+                            // montoAperturaActual es el monto INICIAL, NO debe cambiar
+                            montoAperturaActual = r.IsDBNull(1) ? 0 : r.GetDecimal(1);
                             lblCajaEfectivo.Text = montoAperturaActual.ToString("C");
-                            gridApertura.Visibility = Visibility.Collapsed; 
+                            gridApertura.Visibility = Visibility.Collapsed;
                         } else { gridApertura.Visibility = Visibility.Visible; }
                     }
                 }
-            } catch { gridApertura.Visibility = Visibility.Visible; }
+            } catch (Exception ex) { Logger.LogError("VerificarEstadoCaja error: " + ex.Message); gridApertura.Visibility = Visibility.Visible; }
         }
 
         private void CargarCategorias() {
-            try {
-                using (SqliteConnection conn = GetConnection()) {
-                    conn.Open();
-                    SqliteCommand cmd = new SqliteCommand("SELECT id, nombre FROM categorias ORDER BY nombre", conn);
-                    var cats = new List<object>();
-                    var seen = new HashSet<string>();
-                    using (var r = cmd.ExecuteReader()) {
-                        while (r.Read()) {
-                            string nombre = r.GetString(1);
-                            if (!seen.Contains(nombre)) {
-                                seen.Add(nombre);
-                                cats.Add(new { Id = r.GetInt32(0), Nombre = nombre });
+            Task.Run(() => {
+                try {
+                    using (SqliteConnection conn = GetConnection()) {
+                        conn.Open();
+                        SqliteCommand cmd = new SqliteCommand("SELECT id, nombre FROM categorias ORDER BY nombre", conn);
+                        var cats = new List<object>();
+                        var seen = new HashSet<string>();
+                        using (var r = cmd.ExecuteReader()) {
+                            while (r.Read()) {
+                                var nombre = r.IsDBNull(1) ? string.Empty : r.GetString(1);
+                                var id = r.IsDBNull(0) ? 0 : r.GetInt32(0);
+                                if (!seen.Contains(nombre)) {
+                                    seen.Add(nombre);
+                                    cats.Add(new { Id = id, Nombre = nombre });
+                                }
                             }
                         }
+                        Dispatcher.Invoke(() => cbCargaCategoria.ItemsSource = cats);
                     }
-                    cbCargaCategoria.ItemsSource = cats;
-                }
-            } catch { }
+                } catch (Exception ex) { Logger.LogError("CargarCategorias error: " + ex.Message); }
+            });
         }
 
         private void FinalizarVenta() {
@@ -206,7 +253,8 @@ namespace KioscoApp
             // Agrupamos para saber cuánto necesitamos de cada producto (si es por kilo sumamos kilos; si es unidad sumamos 1)
             var productosRequeridos = carrito
                 .GroupBy(p => p.Id)
-                .Select(g => new { Id = g.Key, CantidadRequerida = g.Sum(p => p.EsPorKilo ? p.Peso / 1000m : 1m) })
+                // CORRECCIÓN: Usar p.Cantidad que ya calcula correctamente
+                .Select(g => new { Id = g.Key, CantidadRequerida = g.Sum(p => p.Cantidad) })
                 .ToList();
 
             using (SqliteConnection conn = GetConnection()) {
@@ -242,19 +290,21 @@ namespace KioscoApp
                     bool committed = false;
                     try {
                         // 1. Crear la Venta (Cabecera)
-                        SqliteCommand cV = new SqliteCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id) VALUES (@t, @c, @m, @sid); SELECT last_insert_rowid();", conn, t);
+                        SqliteCommand cV = new SqliteCommand("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id, fecha) VALUES (@t, @c, @m, @sid, @fecha); SELECT last_insert_rowid();", conn, t);
                         cV.Parameters.AddWithValue("@t", totalVenta);
                         cV.Parameters.AddWithValue("@c", carrito.Count);
                         cV.Parameters.AddWithValue("@m", m);
                         cV.Parameters.AddWithValue("@sid", sesionIdActiva);
+                        cV.Parameters.AddWithValue("@fecha", GetSaleTimestamp());
                         idVenta = Convert.ToInt64(cV.ExecuteScalar());
 
                         // 2. Guardar Detalles y Descontar Stock
                         foreach (var p in carrito) {
                             // Detalle: almacenamos precio por unidad (o por kg), cantidad correcta y subtotal
-                            decimal cantidadDetalle = p.EsPorKilo ? (p.Peso / 1000m) : 1m;
+                            // CORRECCIÓN: Usar propiedades correctas que ya calculan bien
+                            decimal cantidadDetalle = p.Cantidad;  // Devuelve kilos o 1
                             decimal precioUnitario = p.EsPorKilo ? p.PrecioPorKilo : p.Precio;
-                            decimal subtotalDetalle = p.Subtotal;
+                            decimal subtotalDetalle = p.Subtotal;  // Calcula precio total correctamente
 
                             SqliteCommand cD = new SqliteCommand("INSERT INTO venta_detalles (venta_id, nombre, precio, cantidad, subtotal) VALUES (@id, @n, @precio, @cantidad, @subtotal)", conn, t);
                             cD.Parameters.AddWithValue("@id", idVenta);
@@ -277,15 +327,16 @@ namespace KioscoApp
                         t.Commit(); // Confirmar cambios en BD
                         committed = true;
 
-                    } catch (Exception ex) {
-                        // Intentamos rollback sólo si no se confirmó la transacción
-                        if (!committed) {
-                            try { t.Rollback(); } catch { /* Ignorar errores de rollback */ }
-                        }
+                        } catch (Exception ex) {
+                            // Intentamos rollback sólo si no se confirmó la transacción
+                            if (!committed) {
+                                try { t.Rollback(); } catch (Exception rEx) { Logger.LogError("Rollback failed: " + rEx.Message); }
+                            }
 
-                        MostrarAlerta("Error al procesar venta: " + ex.Message);
-                        return; // Salir del método para no continuar con impresión/limpieza
-                    }
+                            Logger.LogError("Error procesando venta: " + ex.Message);
+                            MostrarAlerta("Error al procesar venta. Revise logs.");
+                            return; // Salir del método para no continuar con impresión/limpieza
+                        }
                 }
 
                 // Fuera de la transacción: ahora podemos imprimir y actualizar UI sin interferir con la transacción
@@ -310,7 +361,8 @@ namespace KioscoApp
         }
 
         private void CalcularTotal() { 
-            totalVenta = carrito.Sum(p => p.Precio); 
+            // CORRECCIÓN: Usar Subtotal que calcula correctamente tanto para kilos como para unidades
+            totalVenta = carrito.Sum(p => p.Subtotal); 
             lblTotal.Text = totalVenta.ToString("C2"); 
             lblItemCount.Text = carrito.Count.ToString(); 
         }
@@ -324,16 +376,16 @@ namespace KioscoApp
                     conn.Open(); 
                     using (var r = cmd.ExecuteReader()) { 
                         if (r.Read()) {
-                            int id = r.GetInt32(0);
-                            string nombre = r.GetString(1);
-                            decimal precio = r.GetDecimal(2);
-                            bool esPorKilo = r.GetBoolean(3);
-                            decimal precioPorKilo = r.GetDecimal(4);
-                            decimal stock = r.GetDecimal(5); // Leemos el stock de la BD
+                            int id = r.IsDBNull(0) ? 0 : r.GetInt32(0);
+                            string nombre = r.IsDBNull(1) ? string.Empty : r.GetString(1);
+                            decimal precio = r.IsDBNull(2) ? 0 : r.GetDecimal(2);
+                            bool esPorKilo = r.IsDBNull(3) ? false : r.GetBoolean(3);
+                            decimal precioPorKilo = r.IsDBNull(4) ? 0 : r.GetDecimal(4);
+                            decimal stock = r.IsDBNull(5) ? 0 : r.GetDecimal(5); // Leemos el stock de la BD
 
                             // --- VALIDACIÓN DE STOCK ---
-                            // Contamos cuánto ya tenemos en el carrito de este producto
-                            decimal cantidadEnCarrito = carrito.Where(p => p.Id == id).Sum(p => esPorKilo ? p.Peso / 1000 : 1);
+                            // CORRECCIÓN: Usar Cantidad que devuelve kilos o 1 según el tipo
+                            decimal cantidadEnCarrito = carrito.Where(p => p.Id == id).Sum(p => p.Cantidad);
 
                             // Si NO es por kilo (es por unidad) y nos pasamos... ALERTA
                             if (!esPorKilo && (cantidadEnCarrito + 1 > stock)) {
@@ -367,7 +419,7 @@ namespace KioscoApp
                         } else { MessageBox.Show("Producto no registrado."); } 
                     } 
                 } 
-            } catch (Exception ex) { MessageBox.Show(ex.Message); } 
+            } catch (Exception ex) { Logger.LogError("BuscarYAgregar error: " + ex.Message); MessageBox.Show("Error buscando producto. Revise logs."); } 
         }
 
         private void TxtBarcodeVenta_KeyDown(object sender, KeyEventArgs e) { 
@@ -441,6 +493,8 @@ namespace KioscoApp
         }
 
         private void AbrirPanelCobro() { 
+            // CORRECCIÓN: Asegurar que siempre mostramos el total correcto actualizándolo
+            CalcularTotal();
             lblTotalCobro.Text = totalVenta.ToString("C2"); 
             txtPagaCon.Clear();
             lblVuelto.Text = "$ 0.00";
@@ -450,8 +504,10 @@ namespace KioscoApp
         }
 
         private void TxtPagaCon_TextChanged(object sender, TextChangedEventArgs e) { 
-            if (decimal.TryParse(txtPagaCon.Text, out decimal p)) 
-                lblVuelto.Text = (p - totalVenta).ToString("C2"); 
+            if (decimal.TryParse(txtPagaCon.Text, out decimal p)) {
+                decimal vuelto = p - totalVenta;
+                lblVuelto.Text = vuelto.ToString("C2");
+            }
         }
 
         private void BtnAbrirCaja_Click(object sender, RoutedEventArgs e) {
@@ -640,10 +696,27 @@ namespace KioscoApp
                         }
                     }
                     
-                    lblCajaEfectivo.Text = (montoAperturaActual + efectivo).ToString("C");
+                    // CORRECCIÓN: Recalcular el monto actual desde movimientos
+                    SqliteCommand cmdMovimientos = new SqliteCommand(
+                        "SELECT COALESCE(SUM(CASE WHEN Tipo = 'SALIDA' THEN Monto ELSE 0 END), 0) as salidas FROM Movimientos_Caja WHERE SesionId = @sid",
+                        conn);
+                    cmdMovimientos.Parameters.AddWithValue("@sid", sesionIdActiva);
+                    
+                    decimal totalSalidas = 0;
+                    using (var rMov = cmdMovimientos.ExecuteReader()) {
+                        if (rMov.Read()) {
+                            totalSalidas = rMov.IsDBNull(0) ? 0 : rMov.GetDecimal(0);
+                        }
+                    }
+                    
+                    // El monto actual de efectivo en caja = monto_inicial - salidas + efectivo de ventas
+                    // montoAperturaActual es el monto INICIAL (constante)
+                    decimal montoActualEfectivo = montoAperturaActual - totalSalidas + efectivo;
+                    
+                    lblCajaEfectivo.Text = montoActualEfectivo.ToString("C");
                     lblCajaOtros.Text = otros.ToString("C");
-                    // Total debe incluir el monto de apertura también
-                    lblCajaTotal.Text = (montoAperturaActual + efectivo + otros).ToString("C");
+                    // Total = efectivo + otros
+                    lblCajaTotal.Text = (montoActualEfectivo + otros).ToString("C");
 
                     // 2. Traer el historial CON DETALLE (Adaptado para SQLite)
                     string sql = @"
@@ -701,31 +774,87 @@ namespace KioscoApp
             try {
                 using (SqliteConnection conn = GetConnection()) {
                     conn.Open();
-                    SqliteCommand cmd = new SqliteCommand("SELECT id, fecha_apertura, fecha_cierre, monto_final_efectivo, monto_final_otros FROM sesiones_caja WHERE estado = 'CERRADA' ORDER BY fecha_cierre DESC", conn);
-                    var cierres = new List<dynamic>();
-                    using (var r = cmd.ExecuteReader()) {
-                        while (r.Read()) {
-                            var efectivo = r.IsDBNull(3) ? 0 : r.GetDecimal(3);
-                            var otros = r.IsDBNull(4) ? 0 : r.GetDecimal(4);
-                            cierres.Add(new {
-                                Id = r.GetInt32(0),
-                                FechaCierre = r.GetDateTime(2),
-                                MontoFinalEfectivo = efectivo,
-                                MontoFinalOtros = otros,
-                                TotalDia = efectivo + otros
-                            });
+                    string scope = "Detalle";
+                    Dispatcher.Invoke(() => {
+                        if (cbReportScope.SelectedItem is ComboBoxItem cbi) scope = cbi.Content.ToString();
+                    });
+
+                    if (scope == "Detalle") {
+                        SqliteCommand cmd = new SqliteCommand("SELECT id, fecha_apertura, fecha_cierre, monto_final_efectivo, monto_final_otros FROM sesiones_caja WHERE estado = 'CERRADA' AND (archivado IS NULL OR archivado = 0) ORDER BY fecha_cierre DESC", conn);
+                        var cierres = new List<dynamic>();
+                        using (var r = cmd.ExecuteReader()) {
+                            while (r.Read()) {
+                                var efectivo = r.IsDBNull(3) ? 0 : r.GetDecimal(3);
+                                var otros = r.IsDBNull(4) ? 0 : r.GetDecimal(4);
+                                cierres.Add(new {
+                                    Id = r.GetInt32(0),
+                                    FechaCierre = r.GetDateTime(2),
+                                    MontoFinalEfectivo = efectivo,
+                                    MontoFinalOtros = otros,
+                                    TotalDia = efectivo + otros
+                                });
+                            }
                         }
+                        dgHistorialCierres.ItemsSource = cierres;
+                        lblRecaudacionTotalHistorica.Text = cierres.Sum(c => (decimal)c.TotalDia).ToString("C");
+                    } else if (scope == "Mensual") {
+                        // Agrupar por año-mes
+                        SqliteCommand cmd = new SqliteCommand("SELECT strftime('%Y-%m', fecha_cierre) AS ym, SUM(monto_final_efectivo), SUM(monto_final_otros) FROM sesiones_caja WHERE estado = 'CERRADA' AND (archivado IS NULL OR archivado = 0) GROUP BY ym ORDER BY ym DESC", conn);
+                        var meses = new List<dynamic>();
+                        using (var r = cmd.ExecuteReader()) {
+                            while (r.Read()) {
+                                var ym = r.IsDBNull(0) ? "" : r.GetString(0);
+                                var ef = r.IsDBNull(1) ? 0 : r.GetDecimal(1);
+                                var ot = r.IsDBNull(2) ? 0 : r.GetDecimal(2);
+                                meses.Add(new {
+                                    FechaCierre = ym,
+                                    MontoFinalEfectivo = ef,
+                                    MontoFinalOtros = ot,
+                                    TotalDia = ef + ot
+                                });
+                            }
+                        }
+                        dgHistorialCierres.ItemsSource = meses;
+                        lblRecaudacionTotalHistorica.Text = meses.Sum(c => (decimal)c.TotalDia).ToString("C");
+                    } else { // Anual
+                        SqliteCommand cmd = new SqliteCommand("SELECT strftime('%Y', fecha_cierre) AS y, SUM(monto_final_efectivo), SUM(monto_final_otros) FROM sesiones_caja WHERE estado = 'CERRADA' AND (archivado IS NULL OR archivado = 0) GROUP BY y ORDER BY y DESC", conn);
+                        var anys = new List<dynamic>();
+                        using (var r = cmd.ExecuteReader()) {
+                            while (r.Read()) {
+                                var y = r.IsDBNull(0) ? "" : r.GetString(0);
+                                var ef = r.IsDBNull(1) ? 0 : r.GetDecimal(1);
+                                var ot = r.IsDBNull(2) ? 0 : r.GetDecimal(2);
+                                anys.Add(new {
+                                    FechaCierre = y,
+                                    MontoFinalEfectivo = ef,
+                                    MontoFinalOtros = ot,
+                                    TotalDia = ef + ot
+                                });
+                            }
+                        }
+                        // Además sumar todas las filas para mostrar total anual consolidado (opcional)
+                        var total = anys.Sum(a => (decimal)a.TotalDia);
+                        dgHistorialCierres.ItemsSource = anys;
+                        lblRecaudacionTotalHistorica.Text = total.ToString("C");
                     }
-                    dgHistorialCierres.ItemsSource = cierres;
-                    lblRecaudacionTotalHistorica.Text = cierres.Sum(c => (decimal)c.TotalDia).ToString("C");
                 }
+            } catch (Exception ex) { Logger.LogError("CargarReportes error: " + ex.Message); }
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Wire up events for report controls
+            try {
+                cbReportScope.SelectionChanged += (s, ev) => CargarReportes();
             } catch { }
         }
+
         private void LstSuggestions_SelectionChanged(object sender, SelectionChangedEventArgs e) {
             if (lstSuggestions.SelectedItem is Producto p) {
                 
                 // --- VALIDACIÓN DE STOCK ---
-                decimal cantidadEnCarrito = carrito.Where(x => x.Id == p.Id).Sum(x => x.EsPorKilo ? x.Peso / 1000 : 1);
+                // CORRECCIÓN: Usar Cantidad que devuelve el valor correcto (kilos o unidades)
+                decimal cantidadEnCarrito = carrito.Where(x => x.Id == p.Id).Sum(x => x.Cantidad);
 
                 if (!p.EsPorKilo && (cantidadEnCarrito + 1 > p.Stock)) {
                     MostrarAlerta($"¡Stock Insuficiente!\nStock disponible: {p.Stock}");
@@ -856,10 +985,11 @@ namespace KioscoApp
         {
             if (decimal.TryParse(txtGramosPeso.Text.Replace(",", "."), out decimal gramos) && gramos > 0)
             {
-                decimal kilosRequeridos = gramos / 1000;
+                // CORRECCIÓN: Convertir de gramos a kilos correctamente
+                decimal kilosRequeridos = gramos / 1000m;
                 
-                // Verificamos cuánto peso de este producto ya tenemos en el carrito
-                decimal kilosEnCarrito = carrito.Where(x => x.Id == productoIdActual).Sum(x => x.Peso / 1000);
+                // CORRECCIÓN: Verificamos cuánto peso de este producto ya tenemos en el carrito
+                decimal kilosEnCarrito = carrito.Where(x => x.Id == productoIdActual).Sum(x => x.Peso / 1000m);
                 
                 // VALIDACIÓN
                 if (kilosEnCarrito + kilosRequeridos > stockActualProducto) {
@@ -871,7 +1001,8 @@ namespace KioscoApp
                 carrito.Add(new Producto { 
                     Id = productoIdActual,
                     Nombre = $"{productoPesoActual} ({gramos}g)", 
-                    Precio = Math.Round(precioCalculado, 2),
+                    // CORRECCIÓN: NO calcular precio total aquí. Subtotal se encarga de eso.
+                    // Peso y PrecioPorKilo son suficientes para que Subtotal calcule correctamente
                     Peso = gramos,
                     EsPorKilo = true,
                     PrecioPorKilo = precioPorKiloActual,
@@ -1031,113 +1162,116 @@ namespace KioscoApp
         {
             gridCustomAlert.Visibility = Visibility.Collapsed;
         }
-        // Variable temporal para saber a qué producto le estamos sumando
-        private int idProductoAEditar = 0;  
-        private int idProductoABorrar = 0; // <--- Variable nueva
-        private bool esModoResta = false;
+        
+        private int idProductoABorrar = 0;
         // --- BLOQUE DE GESTIÓN DE STOCK (SUMAR Y RESTAR) ---
 
-        private void BtnSumarStock_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is int id)
-            {
-                idProductoAEditar = id;
-                esModoResta = false;
+        // MÉTODO DESACTIVADO - Las acciones de sumar/restar stock fueron removidas
+        // private void BtnSumarStock_Click(object sender, RoutedEventArgs e)
+        // {
+        //     if (sender is Button btn && btn.Tag is int id)
+        //     {
+        //         idProductoAEditar = id;
+        //         esModoResta = false;
+        //
+        //         var prod = inventarioCompleto.FirstOrDefault(p => p.Id == id);
+        //         lblNombreProductoStock.Text = prod != null ? $"{prod.Nombre}" : "Producto desconocido";
+        //         
+        //         // --- TEXTOS PARA SUMAR ---
+        //         lblTituloStock.Text = "📦 Ingreso de Mercadería";
+        //         lblTextoCantidad.Text = "Cantidad a sumar:";
+        //         
+        //         txtCantidadStock.Clear();
+        //         gridStockInput.Visibility = Visibility.Visible;
+        //         txtCantidadStock.Focus();
+        //     }
+        // }
 
-                var prod = inventarioCompleto.FirstOrDefault(p => p.Id == id);
-                lblNombreProductoStock.Text = prod != null ? $"{prod.Nombre}" : "Producto desconocido";
-                
-                // --- TEXTOS PARA SUMAR ---
-                lblTituloStock.Text = "📦 Ingreso de Mercadería";
-                lblTextoCantidad.Text = "Cantidad a sumar:";
-                
-                txtCantidadStock.Clear();
-                gridStockInput.Visibility = Visibility.Visible;
-                txtCantidadStock.Focus();
-            }
-        }
+        // MÉTODO DESACTIVADO - Las acciones de sumar/restar stock fueron removidas
+        // private void BtnRestarStock_Click(object sender, RoutedEventArgs e)
+        // {
+        //     if (sender is Button btn && btn.Tag is int id)
+        //     {
+        //         idProductoAEditar = id;
+        //         esModoResta = true;
+        //
+        //         var prod = inventarioCompleto.FirstOrDefault(p => p.Id == id);
+        //         lblNombreProductoStock.Text = prod != null ? $"{prod.Nombre}" : "Producto desconocido";
+        //         
+        //         // --- TEXTOS PARA RESTAR ---
+        //         lblTituloStock.Text = "📉 Ajuste de Stock (Resta)";
+        //         lblTextoCantidad.Text = "Cantidad a quitar:";
+        //         
+        //         txtCantidadStock.Clear();
+        //         gridStockInput.Visibility = Visibility.Visible;
+        //         txtCantidadStock.Focus();
+        //     }
+        // }
 
-        private void BtnRestarStock_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.Tag is int id)
-            {
-                idProductoAEditar = id;
-                esModoResta = true;
+        // MÉTODO DESACTIVADO - Las acciones de sumar/restar stock fueron removidas
+        // private void BtnConfirmarStock_Click(object sender, RoutedEventArgs e)
+        // {
+        //     if (decimal.TryParse(txtCantidadStock.Text.Replace(",", "."), out decimal cantidad) && cantidad > 0)
+        //     {
+        //         try
+        //         {
+        //             using (SqliteConnection conn = GetConnection())
+        //             {
+        //                 conn.Open();
+        //                 
+        //                 // Si es resta, convertimos el número a negativo
+        //                 decimal cantidadFinal = esModoResta ? (cantidad * -1) : cantidad;
+        //
+        //                 // Validacion extra: No dejar stock negativo si restamos
+        //                 if (esModoResta) {
+        //                     // Consultamos stock actual para ver si alcanza
+        //                     SqliteCommand cmdCheck = new SqliteCommand("SELECT stock FROM productos WHERE id = @id", conn);
+        //                     cmdCheck.Parameters.AddWithValue("@id", idProductoAEditar);
+        //                     decimal stockActual = Convert.ToDecimal(cmdCheck.ExecuteScalar());
+        //                     
+        //                     if (stockActual + cantidadFinal < 0) {
+        //                         MostrarAlerta($"No podés restar {cantidad} unidades. Solo tenés {stockActual} en stock.");
+        //                         return;
+        //                     }
+        //                 }
+        //
+        //                 // La magia: Sumamos el número (que puede ser negativo)
+        //                 SqliteCommand cmd = new SqliteCommand("UPDATE productos SET stock = stock + @cant WHERE id = @id", conn);
+        //                 cmd.Parameters.AddWithValue("@cant", cantidadFinal);
+        //                 cmd.Parameters.AddWithValue("@id", idProductoAEditar);
+        //                 cmd.ExecuteNonQuery();
+        //             }
+        //
+        //             CargarInventario();
+        //             gridStockInput.Visibility = Visibility.Collapsed;
+        //             
+        //             // Opcional: Mostrar confirmación
+        //             // string operacion = esModoResta ? "descontadas" : "agregadas";
+        //             // MostrarAlerta($"Se han {operacion} {cantidad} unidades correctamente.");
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             MostrarAlerta("Error al actualizar: " + ex.Message);
+        //         }
+        //     }
+        //     else
+        //     {
+        //         MostrarAlerta("Por favor ingresá una cantidad válida (mayor a 0).");
+        //     }
+        // }
 
-                var prod = inventarioCompleto.FirstOrDefault(p => p.Id == id);
-                lblNombreProductoStock.Text = prod != null ? $"{prod.Nombre}" : "Producto desconocido";
-                
-                // --- TEXTOS PARA RESTAR ---
-                lblTituloStock.Text = "📉 Ajuste de Stock (Resta)";
-                lblTextoCantidad.Text = "Cantidad a quitar:";
-                
-                txtCantidadStock.Clear();
-                gridStockInput.Visibility = Visibility.Visible;
-                txtCantidadStock.Focus();
-            }
-        }
+        // MÉTODO DESACTIVADO - Las acciones de sumar/restar stock fueron removidas
+        // private void BtnCancelarStock_Click(object sender, RoutedEventArgs e)
+        // {
+        //     gridStockInput.Visibility = Visibility.Collapsed;
+        // }
 
-        private void BtnConfirmarStock_Click(object sender, RoutedEventArgs e)
-        {
-            if (decimal.TryParse(txtCantidadStock.Text.Replace(",", "."), out decimal cantidad) && cantidad > 0)
-            {
-                try
-                {
-                    using (SqliteConnection conn = GetConnection())
-                    {
-                        conn.Open();
-                        
-                        // Si es resta, convertimos el número a negativo
-                        decimal cantidadFinal = esModoResta ? (cantidad * -1) : cantidad;
-
-                        // Validacion extra: No dejar stock negativo si restamos
-                        if (esModoResta) {
-                            // Consultamos stock actual para ver si alcanza
-                            SqliteCommand cmdCheck = new SqliteCommand("SELECT stock FROM productos WHERE id = @id", conn);
-                            cmdCheck.Parameters.AddWithValue("@id", idProductoAEditar);
-                            decimal stockActual = Convert.ToDecimal(cmdCheck.ExecuteScalar());
-                            
-                            if (stockActual + cantidadFinal < 0) {
-                                MostrarAlerta($"No podés restar {cantidad} unidades. Solo tenés {stockActual} en stock.");
-                                return;
-                            }
-                        }
-
-                        // La magia: Sumamos el número (que puede ser negativo)
-                        SqliteCommand cmd = new SqliteCommand("UPDATE productos SET stock = stock + @cant WHERE id = @id", conn);
-                        cmd.Parameters.AddWithValue("@cant", cantidadFinal);
-                        cmd.Parameters.AddWithValue("@id", idProductoAEditar);
-                        cmd.ExecuteNonQuery();
-                    }
-
-                    CargarInventario();
-                    gridStockInput.Visibility = Visibility.Collapsed;
-                    
-                    // Opcional: Mostrar confirmación
-                    // string operacion = esModoResta ? "descontadas" : "agregadas";
-                    // MostrarAlerta($"Se han {operacion} {cantidad} unidades correctamente.");
-                }
-                catch (Exception ex)
-                {
-                    MostrarAlerta("Error al actualizar: " + ex.Message);
-                }
-            }
-            else
-            {
-                MostrarAlerta("Por favor ingresá una cantidad válida (mayor a 0).");
-            }
-        }
-
-        private void BtnCancelarStock_Click(object sender, RoutedEventArgs e)
-        {
-            gridStockInput.Visibility = Visibility.Collapsed;
-        }
-
-        private void TxtCantidadStock_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter) BtnConfirmarStock_Click(null!, null!);
-            if (e.Key == Key.Escape) gridStockInput.Visibility = Visibility.Collapsed;
-        }
+        // MÉTODO DESACTIVADO - Las acciones de sumar/restar stock fueron removidas
+        // private void TxtCantidadStock_KeyDown(object sender, KeyEventArgs e)
+        // {
+        //     if (e.Key == Key.Enter) BtnConfirmarStock_Click(null!, null!);
+        //     if (e.Key == Key.Escape) gridStockInput.Visibility = Visibility.Collapsed;
+        // }
 
         // 1. Cargar Clientes al iniciar o al cambiar de pestaña
         private void CargarClientes()
@@ -1431,21 +1565,22 @@ namespace KioscoApp
             }
         }
 
-        private void BtnRegistrarEntrada_Click(object sender, RoutedEventArgs e)
-        {
-            tipoMovimientoActual = "ENTRADA";
-            lblTituloMovimiento.Text = "💵 REGISTRAR ENTRADA";
-            cbCategoriaMov.Items.Clear();
-            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Cambio Banco" });
-            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Aporte de Capital" });
-            cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Otro" });
-            cbCategoriaMov.SelectedIndex = 0;
-            
-            txtMontoMov.Clear();
-            txtDescripcionMov.Clear();
-            gridMovimiento.Visibility = Visibility.Visible;
-            txtMontoMov.Focus();
-        }
+        // MÉTODO DESACTIVADO - Solo se permite registrar SALIDAS (Pago a Proveedores)
+        // private void BtnRegistrarEntrada_Click(object sender, RoutedEventArgs e)
+        // {
+        //     tipoMovimientoActual = "ENTRADA";
+        //     lblTituloMovimiento.Text = "💵 REGISTRAR ENTRADA";
+        //     cbCategoriaMov.Items.Clear();
+        //     cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Cambio Banco" });
+        //     cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Aporte de Capital" });
+        //     cbCategoriaMov.Items.Add(new ComboBoxItem { Content = "Otro" });
+        //     cbCategoriaMov.SelectedIndex = 0;
+        //     
+        //     txtMontoMov.Clear();
+        //     txtDescripcionMov.Clear();
+        //     gridMovimiento.Visibility = Visibility.Visible;
+        //     txtMontoMov.Focus();
+        // }
 
         private void BtnRegistrarSalida_Click(object sender, RoutedEventArgs e)
         {
@@ -1492,15 +1627,12 @@ namespace KioscoApp
                     cmd.ExecuteNonQuery();
                 }
 
-                // Actualizar la caja según el tipo de movimiento
-                if (tipoMovimientoActual == "SALIDA")
-                {
-                    montoAperturaActual -= monto;
-                    lblCajaEfectivo.Text = montoAperturaActual.ToString("C");
-                }
-
+                // CORRECCIÓN: NO modificar montoAperturaActual (es constante)
+                // Solo guardar en BD y recalcular la caja
                 gridMovimiento.Visibility = Visibility.Collapsed;
                 CargarMovimientos();
+                // Recalcular y actualizar la etiqueta de caja
+                CargarCaja();
                 MostrarAlerta($"✅ {tipoMovimientoActual.ToLower()} de ${monto:F2} registrada correctamente.");
             }
             catch (Exception ex)

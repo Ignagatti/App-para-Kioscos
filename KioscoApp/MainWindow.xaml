@@ -193,27 +193,11 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                            
-                                            <Button Content="+" Background="#4CAF50" Foreground="White" 
-                                                    Width="30" Height="30" Margin="0,0,5,0"
-                                                    Click="BtnSumarStock_Click" Tag="{Binding Id}"
-                                                    ToolTip="Ingreso de Mercadería" Cursor="Hand">
-                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
-                                            </Button>
-
-                                            <Button Content="-" Background="#FF9800" Foreground="White" 
-                                                    Width="30" Height="30" Margin="0,0,5,0"
-                                                    Click="BtnRestarStock_Click" Tag="{Binding Id}"
-                                                    ToolTip="Ajuste / Pérdida / Consumo Propio" Cursor="Hand" FontWeight="Bold">
-                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
-                                            </Button>
-
                                             <Button Content="Eliminar" Click="BtnEliminarProducto_Click" Tag="{Binding Id}" 
                                                     Background="#F44336" Foreground="White" 
                                                     FontSize="12" Padding="5,2" Height="30" Cursor="Hand">
                                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
                                             </Button>
-
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -254,9 +238,8 @@
                     </UniformGrid>
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
-                        <TextBlock Text="💰 MOVIMIENTOS DE CAJA" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
-                        <Button Content="➕ ENTRADA" Click="BtnRegistrarEntrada_Click" Background="#4CAF50" Foreground="White" Margin="20,0,10,0" Height="35" Padding="10,5"/>
-                        <Button Content="➖ SALIDA" Click="BtnRegistrarSalida_Click" Background="#F44336" Foreground="White" Height="35" Padding="10,5"/>
+                        <TextBlock Text="💰 PAGO A PROVEEDORES" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                        <Button Content="➖ REGISTRAR SALIDA" Click="BtnRegistrarSalida_Click" Background="#F44336" Foreground="White" Margin="20,0,0,0" Height="35" Padding="10,5"/>
                     </StackPanel>
 
                     <Grid Grid.Row="2">
@@ -310,14 +293,19 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <TextBlock Text="RECAUDACIÓN TOTAL ACUMULADA: " VerticalAlignment="Center" FontWeight="Bold"/>
                             <TextBlock x:Name="lblRecaudacionTotalHistorica" Text="$ 0" FontSize="22" FontWeight="ExtraBold" Foreground="#311B92" Margin="10,0,0,0"/>
+                            <ComboBox x:Name="cbReportScope" Width="150" Margin="20,0,0,0" SelectedIndex="0">
+                                <ComboBoxItem>Detalle</ComboBoxItem>
+                                <ComboBoxItem>Mensual</ComboBoxItem>
+                                <ComboBoxItem>Anual</ComboBoxItem>
+                            </ComboBox>
                         </StackPanel>
                     </Border>
-                    <DataGrid Grid.Row="2" x:Name="dgHistorialCierres" AutoGenerateColumns="False" CanUserAddRows="False">
+                    <DataGrid Grid.Row="2" x:Name="dgHistorialCierres" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Cierre" Binding="{Binding FechaCierre, StringFormat='dd/MM/yyyy HH:mm'}" Width="200"/>
-                            <DataGridTextColumn Header="Efectivo" Binding="{Binding MontoFinalEfectivo, StringFormat='$ #,##0'}" Width="150"/>
-                            <DataGridTextColumn Header="Otros" Binding="{Binding MontoFinalOtros, StringFormat='$ #,##0'}" Width="150"/>
-                            <DataGridTextColumn Header="TOTAL" Binding="{Binding TotalDia, StringFormat='$ #,##0'}" Width="*" FontWeight="Bold"/>
+                            <DataGridTextColumn Header="Cierre" Binding="{Binding FechaCierre, StringFormat='dd/MM/yyyy HH:mm', Mode=OneWay}" Width="200"/>
+                            <DataGridTextColumn Header="Efectivo" Binding="{Binding MontoFinalEfectivo, StringFormat='$ #,##0', Mode=OneWay}" Width="150"/>
+                            <DataGridTextColumn Header="Otros" Binding="{Binding MontoFinalOtros, StringFormat='$ #,##0', Mode=OneWay}" Width="150"/>
+                            <DataGridTextColumn Header="TOTAL" Binding="{Binding TotalDia, StringFormat='$ #,##0', Mode=OneWay}" Width="*" FontWeight="Bold"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -538,44 +526,7 @@
 
         </Grid>
         
-        <Grid x:Name="gridStockInput" Visibility="Collapsed" Panel.ZIndex="1000">
-            <Border Background="Black" Opacity="0.5" MouseDown="BtnCancelarStock_Click"/>
-            
-            <Border Background="White" Width="350" CornerRadius="12" HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.3"/>
-                </Border.Effect>
-                
-                <Grid Margin="20">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    
-                    <TextBlock x:Name="lblTituloStock" Text="📦 Ingreso de Mercadería" FontSize="18" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center"/>
-                    
-                    <TextBlock x:Name="lblNombreProductoStock" Grid.Row="1" Text="Producto: ..." Margin="0,10,0,15" HorizontalAlignment="Center" Foreground="#666"/>
-                    
-                    <StackPanel Grid.Row="2">
-                        <TextBlock x:Name="lblTextoCantidad" Text="Cantidad a sumar:" FontSize="12" Foreground="#888" Margin="0,0,0,5"/>
-                        <TextBox x:Name="txtCantidadStock" FontSize="20" Padding="10" TextAlignment="Center" 
-                                PreviewTextInput="TxtGramosPeso_PreviewTextInput" 
-                                KeyDown="TxtCantidadStock_KeyDown"/>
-                    </StackPanel>
-                    
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0">
-                        <Button Content="Cancelar" Click="BtnCancelarStock_Click" Width="100" Height="35" Background="#EEE" Foreground="#555" Margin="0,0,10,0" BorderThickness="0">
-                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
-                        </Button>
-                        <Button Content="Confirmar" Click="BtnConfirmarStock_Click" Width="100" Height="35" Background="#4CAF50" Foreground="White" BorderThickness="0">
-                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
-        </Grid>
+
 
         <Grid x:Name="gridConfirmDelete" Visibility="Collapsed" Panel.ZIndex="1001">
             <Border Background="Black" Opacity="0.5" MouseDown="BtnCancelarEliminar_Click"/>
