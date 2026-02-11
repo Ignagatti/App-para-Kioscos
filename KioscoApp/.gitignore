@@ -11,3 +11,5 @@ obj/
 # Archivos temporales de base de datos o logs
 *.log
 *.tmp
+[Bb]in/
+[Oo]bj/
