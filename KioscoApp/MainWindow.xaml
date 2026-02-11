@@ -64,9 +64,16 @@
                         
                         <TextBlock Text="PRODUCTOS EN CARRITO" FontWeight="Bold" Foreground="#333" FontSize="14" Margin="0,20,0,10"/>
                         <Border Background="White" CornerRadius="8" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,0,15">
-                            <DataGrid x:Name="dgCarrito" Height="350" AutoGenerateColumns="False" CanUserAddRows="False" 
-                                      GridLinesVisibility="Horizontal" RowHeight="40" FontSize="13" Background="White">
-                                <DataGrid.Columns>
+                            <DataGrid x:Name="dgCarrito" 
+                                Height="350" 
+                                AutoGenerateColumns="False" 
+                                CanUserAddRows="False" 
+                                IsReadOnly="True"
+                                GridLinesVisibility="Horizontal" 
+                                RowHeight="40" 
+                                FontSize="13" 
+                                Background="White">
+                            <DataGrid.Columns>
 
                                     <DataGridTemplateColumn Header="Producto" Width="*">
                                         <DataGridTemplateColumn.CellTemplate>

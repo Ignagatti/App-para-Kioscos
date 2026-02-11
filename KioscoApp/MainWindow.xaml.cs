@@ -955,44 +955,79 @@ namespace KioscoApp
                 MessageBox.Show("Error cargando caja: " + ex.Message);
             }
         }
-        private void CargarReportes() {
-            try {
-                using (SqliteConnection conn = GetConnection()) {
+        private void CargarReportes()
+        {
+            try
+            {
+                using (SqliteConnection conn = GetConnection())
+                {
                     conn.Open();
                     string scope = "Detalle";
-                    Dispatcher.Invoke(() => {
-                        if (cbReportScope.SelectedItem is ComboBoxItem cbi) scope = cbi.Content.ToString();
-                    });
 
-                    if (scope == "Detalle") {
-                        SqliteCommand cmd = new SqliteCommand("SELECT id, fecha_apertura, fecha_cierre, monto_final_efectivo, monto_final_otros FROM sesiones_caja WHERE estado = 'CERRADA' AND (archivado IS NULL OR archivado = 0) ORDER BY fecha_cierre DESC", conn);
+                    // Verificamos que el item seleccionado no sea nulo antes de leer
+                    if (cbReportScope.SelectedItem is ComboBoxItem cbi)
+                        scope = cbi.Content?.ToString() ?? "Detalle";
+
+                    // --- 1. REPORTE DETALLADO (Por cierre de caja individual) ---
+                    if (scope == "Detalle")
+                    {
+                        // NOTA: Saqué "AND (archivado IS NULL...)" porque esa columna no existe en tu tabla actual.
+                        string sql = "SELECT id, fecha_apertura, fecha_cierre, monto_final_efectivo, monto_final_otros FROM sesiones_caja WHERE estado = 'CERRADA' ORDER BY fecha_cierre DESC";
+                        
+                        SqliteCommand cmd = new SqliteCommand(sql, conn);
                         var cierres = new List<dynamic>();
-                        using (var r = cmd.ExecuteReader()) {
-                            while (r.Read()) {
+
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
                                 var efectivo = r.IsDBNull(3) ? 0 : r.GetDecimal(3);
                                 var otros = r.IsDBNull(4) ? 0 : r.GetDecimal(4);
-                                cierres.Add(new {
+                                
+                                // Lectura segura de fecha
+                                DateTime fecha = DateTime.MinValue;
+                                if (!r.IsDBNull(2))
+                                {
+                                    // Intentamos leer directo, si falla (por formato string), parseamos
+                                    try { fecha = r.GetDateTime(2); } 
+                                    catch { DateTime.TryParse(r.GetString(2), out fecha); }
+                                }
+
+                                cierres.Add(new
+                                {
                                     Id = r.GetInt32(0),
-                                    FechaCierre = r.GetDateTime(2),
+                                    FechaCierre = fecha,
                                     MontoFinalEfectivo = efectivo,
                                     MontoFinalOtros = otros,
                                     TotalDia = efectivo + otros
                                 });
                             }
                         }
+                        
                         dgHistorialCierres.ItemsSource = cierres;
-                        lblRecaudacionTotalHistorica.Text = cierres.Sum(c => (decimal)c.TotalDia).ToString("C");
-                    } else if (scope == "Mensual") {
-                        // Agrupar por año-mes
-                        SqliteCommand cmd = new SqliteCommand("SELECT strftime('%Y-%m', fecha_cierre) AS ym, SUM(monto_final_efectivo), SUM(monto_final_otros) FROM sesiones_caja WHERE estado = 'CERRADA' AND (archivado IS NULL OR archivado = 0) GROUP BY ym ORDER BY ym DESC", conn);
+                        
+                        // Calculamos el total histórico sumando la lista
+                        decimal totalHist = 0;
+                        foreach (var item in cierres) totalHist += (decimal)item.TotalDia;
+                        lblRecaudacionTotalHistorica.Text = totalHist.ToString("C");
+                    }
+                    // --- 2. REPORTE MENSUAL ---
+                    else if (scope == "Mensual")
+                    {
+                        string sql = "SELECT strftime('%Y-%m', fecha_cierre) AS ym, SUM(monto_final_efectivo), SUM(monto_final_otros) FROM sesiones_caja WHERE estado = 'CERRADA' GROUP BY ym ORDER BY ym DESC";
+                        SqliteCommand cmd = new SqliteCommand(sql, conn);
+
                         var meses = new List<dynamic>();
-                        using (var r = cmd.ExecuteReader()) {
-                            while (r.Read()) {
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
                                 var ym = r.IsDBNull(0) ? "" : r.GetString(0);
                                 var ef = r.IsDBNull(1) ? 0 : r.GetDecimal(1);
                                 var ot = r.IsDBNull(2) ? 0 : r.GetDecimal(2);
-                                meses.Add(new {
-                                    FechaCierre = ym,
+                                meses.Add(new
+                                {
+                                    FechaCierre = ym, // Muestra ej: "2023-10"
                                     MontoFinalEfectivo = ef,
                                     MontoFinalOtros = ot,
                                     TotalDia = ef + ot
@@ -1000,30 +1035,47 @@ namespace KioscoApp
                             }
                         }
                         dgHistorialCierres.ItemsSource = meses;
-                        lblRecaudacionTotalHistorica.Text = meses.Sum(c => (decimal)c.TotalDia).ToString("C");
-                    } else { // Anual
-                        SqliteCommand cmd = new SqliteCommand("SELECT strftime('%Y', fecha_cierre) AS y, SUM(monto_final_efectivo), SUM(monto_final_otros) FROM sesiones_caja WHERE estado = 'CERRADA' AND (archivado IS NULL OR archivado = 0) GROUP BY y ORDER BY y DESC", conn);
+                        
+                        decimal totalHist = 0;
+                        foreach (var item in meses) totalHist += (decimal)item.TotalDia;
+                        lblRecaudacionTotalHistorica.Text = totalHist.ToString("C");
+                    }
+                    // --- 3. REPORTE ANUAL ---
+                    else
+                    {
+                        string sql = "SELECT strftime('%Y', fecha_cierre) AS y, SUM(monto_final_efectivo), SUM(monto_final_otros) FROM sesiones_caja WHERE estado = 'CERRADA' GROUP BY y ORDER BY y DESC";
+                        SqliteCommand cmd = new SqliteCommand(sql, conn);
+
                         var anys = new List<dynamic>();
-                        using (var r = cmd.ExecuteReader()) {
-                            while (r.Read()) {
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
                                 var y = r.IsDBNull(0) ? "" : r.GetString(0);
                                 var ef = r.IsDBNull(1) ? 0 : r.GetDecimal(1);
                                 var ot = r.IsDBNull(2) ? 0 : r.GetDecimal(2);
-                                anys.Add(new {
-                                    FechaCierre = y,
+                                anys.Add(new
+                                {
+                                    FechaCierre = y, // Muestra ej: "2023"
                                     MontoFinalEfectivo = ef,
                                     MontoFinalOtros = ot,
                                     TotalDia = ef + ot
                                 });
                             }
                         }
-                        // Además sumar todas las filas para mostrar total anual consolidado (opcional)
-                        var total = anys.Sum(a => (decimal)a.TotalDia);
                         dgHistorialCierres.ItemsSource = anys;
-                        lblRecaudacionTotalHistorica.Text = total.ToString("C");
+
+                        decimal totalHist = 0;
+                        foreach (var item in anys) totalHist += (decimal)item.TotalDia;
+                        lblRecaudacionTotalHistorica.Text = totalHist.ToString("C");
                     }
                 }
-            } catch (Exception ex) { Logger.LogError("CargarReportes error: " + ex.Message); }
+            }
+            catch (Exception ex)
+            {
+                // ¡IMPORTANTE! Esto te va a decir por qué falla si vuelve a pasar
+                MessageBox.Show($"Error al cargar reportes: {ex.Message}\n\nRevisá que hayas cerrado caja al menos una vez.");
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
