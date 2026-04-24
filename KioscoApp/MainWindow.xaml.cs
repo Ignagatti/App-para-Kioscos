@@ -134,6 +134,45 @@ namespace KioscoApp
                     cmd.ExecuteNonQuery();
                 }
 
+                // --- CREAR Y POBLAR TABLA DE CATEGORÍAS POR DEFECTO ---
+                string sqlCategorias = @"
+                    CREATE TABLE IF NOT EXISTS categorias (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nombre TEXT NOT NULL UNIQUE
+                    );";
+                using (SqliteCommand cmd = new SqliteCommand(sqlCategorias, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
+                // --- REVISAR Y AGREGAR CATEGORÍAS FALTANTES ---
+                string[] categoriasDefecto = {
+                    "Almacén", "Bazar / Varios", "Bebidas", "Bebidas Alcohólicas",
+                    "Cigarrillos", "Fiambres", "Galletitas", "General",
+                    "Golosinas", "Helados", "Lácteos", "Limpieza",
+                    "Panificación", "Perfumería", "Snacks"
+                };
+
+                foreach (string cat in categoriasDefecto)
+                {
+                    // Revisamos si ESTA categoría en particular ya existe en la base de datos
+                    using (SqliteCommand cmdCheckCat = new SqliteCommand("SELECT COUNT(*) FROM categorias WHERE nombre = @n", conn))
+                    {
+                        cmdCheckCat.Parameters.AddWithValue("@n", cat);
+                        long countCat = (long)cmdCheckCat.ExecuteScalar();
+                        
+                        // Si el conteo es 0 (no existe), la insertamos
+                        if (countCat == 0)
+                        {
+                            using (SqliteCommand cmdInsert = new SqliteCommand("INSERT INTO categorias (nombre) VALUES (@n)", conn))
+                            {
+                                cmdInsert.Parameters.AddWithValue("@n", cat);
+                                cmdInsert.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+
                 // Tabla Movimientos
                 string sqlMovimientos = @"
                     CREATE TABLE IF NOT EXISTS Movimientos_Caja (
