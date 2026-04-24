@@ -134,14 +134,22 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    
+                                        <ColumnDefinition Width="Auto"/> </Grid.ColumnDefinitions>
+                                                                    
                                     <ComboBox x:Name="cbCargaCategoria" Grid.Column="0" Height="40" FontSize="14"
                                             DisplayMemberPath="Nombre" SelectedValuePath="Id" Padding="10,0"/>
-                                            
+                                                                    
                                     <Button Content="➕" Grid.Column="1" Width="40" Height="40" Margin="5,0,0,0"
                                             Click="BtnNuevaCategoria_Click" ToolTip="Crear nueva categoría"
-                                            Background="#2196F3" Foreground="White" FontWeight="Bold" FontSize="16"/>
+                                            Background="#2196F3" Foreground="White" FontWeight="Bold" FontSize="16">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                    </Button>
+
+                                    <Button Content="🗑️" Grid.Column="2" Width="40" Height="40" Margin="5,0,0,0"
+                                            Click="BtnEliminarCategoria_Click" ToolTip="Eliminar categoría seleccionada"
+                                            Background="#F44336" Foreground="White" FontWeight="Bold" FontSize="16">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                    </Button>
                                 </Grid>
 
                                 <Grid x:Name="gridNuevaCategoria" Visibility="Collapsed" Margin="0,0,0,18">

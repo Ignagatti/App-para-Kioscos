@@ -1,7 +1,7 @@
 -- Crear tablas para SQLite
 CREATE TABLE IF NOT EXISTS categorias (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT NOT NULL
+    nombre TEXT NOT NULL UNIQUE -- Agregamos UNIQUE acá
 );
 
 CREATE TABLE IF NOT EXISTS productos (
@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS productos (
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
+
+-- NUEVO: Índices para búsquedas súper rápidas
+CREATE INDEX IF NOT EXISTS idx_productos_codigo ON productos(codigo_barras);
+CREATE INDEX IF NOT EXISTS idx_productos_nombre ON productos(nombre);
 
 CREATE TABLE IF NOT EXISTS sesiones_caja (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,6 +37,7 @@ CREATE TABLE IF NOT EXISTS ventas (
     cantidad_items INTEGER NOT NULL,
     metodo_pago TEXT NOT NULL,
     sesion_id INTEGER NOT NULL,
+    cliente_id INTEGER DEFAULT NULL, -- Agregado acá para los Fiados
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (sesion_id) REFERENCES sesiones_caja(id)
 );
@@ -45,6 +50,24 @@ CREATE TABLE IF NOT EXISTS venta_detalles (
     cantidad REAL NOT NULL,
     subtotal REAL NOT NULL,
     FOREIGN KEY (venta_id) REFERENCES ventas(id) ON DELETE CASCADE
+);
+
+-- NUEVO: Tablas traídas desde el código C#
+CREATE TABLE IF NOT EXISTS Clientes (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Nombre TEXT NOT NULL,
+    Saldo DECIMAL DEFAULT 0,
+    Telefono TEXT
+);
+
+CREATE TABLE IF NOT EXISTS Movimientos_Caja (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Tipo TEXT NOT NULL,
+    Categoria TEXT NOT NULL,
+    Monto DECIMAL NOT NULL,
+    Descripcion TEXT,
+    SesionId INTEGER
 );
 
 -- Insertar categorías iniciales

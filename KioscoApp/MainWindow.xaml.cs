@@ -75,14 +75,15 @@ namespace KioscoApp
 
         private void InicializarBaseDatos()
         {
-            // Crear la carpeta si no existe
+            // 1. Crear la carpeta si no existe
             string? dbDir = Path.GetDirectoryName(connStrActiva.Replace("Data Source=", ""));
             if (dbDir != null && !Directory.Exists(dbDir)) Directory.CreateDirectory(dbDir);
 
-            // Ejecutar el script SQL para crear tablas
             using (SqliteConnection conn = new SqliteConnection(connStrActiva))
             {
                 conn.Open();
+                
+                // 2. Ejecutar el script SQL (Acá se crean TODAS las tablas de una)
                 try {
                     string scriptPath = GetSqlScriptPath();
                     if (File.Exists(scriptPath)) {
@@ -94,58 +95,12 @@ namespace KioscoApp
                         }
                     } else {
                         Logger.LogError($"SQL script not found: {scriptPath}");
-                        // No interrumpimos: continuamos creando tablas necesarias manualmente
                     }
                 } catch (Exception ex) {
                     Logger.LogError("Error executing SQL script: " + ex.Message);
                 }
 
-                // Agregar columna 'es_por_kilo' a productos si no existe
-                try {
-                    SqliteCommand checkCol1 = new SqliteCommand("PRAGMA table_info(productos)", conn);
-                    bool hasEsPorKilo = false;
-                    using (var reader = checkCol1.ExecuteReader()) {
-                        while (reader.Read()) {
-                            if (reader.GetString(1) == "es_por_kilo") {
-                                hasEsPorKilo = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!hasEsPorKilo) {
-                        SqliteCommand addCol1 = new SqliteCommand("ALTER TABLE productos ADD COLUMN es_por_kilo INTEGER DEFAULT 0", conn);
-                        addCol1.ExecuteNonQuery();
-                    }
-                } catch (Exception ex) { 
-                    MessageBox.Show($"Error agregando columna es_por_kilo: {ex.Message}");
-                }
-
-                // Tabla Clientes
-                string sqlClientes = @"
-                    CREATE TABLE IF NOT EXISTS Clientes (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Nombre TEXT NOT NULL,
-                        Saldo DECIMAL DEFAULT 0,
-                        Telefono TEXT
-                    );";
-                    
-                using (SqliteCommand cmd = new SqliteCommand(sqlClientes, conn))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-
-                // --- CREAR Y POBLAR TABLA DE CATEGORÍAS POR DEFECTO ---
-                string sqlCategorias = @"
-                    CREATE TABLE IF NOT EXISTS categorias (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nombre TEXT NOT NULL UNIQUE
-                    );";
-                using (SqliteCommand cmd = new SqliteCommand(sqlCategorias, conn))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-
-                // --- REVISAR Y AGREGAR CATEGORÍAS FALTANTES ---
+                // 3. Revisar y agregar categorías faltantes
                 string[] categoriasDefecto = {
                     "Almacén", "Bazar / Varios", "Bebidas", "Bebidas Alcohólicas",
                     "Cigarrillos", "Fiambres", "Galletitas", "General",
@@ -155,13 +110,11 @@ namespace KioscoApp
 
                 foreach (string cat in categoriasDefecto)
                 {
-                    // Revisamos si ESTA categoría en particular ya existe en la base de datos
                     using (SqliteCommand cmdCheckCat = new SqliteCommand("SELECT COUNT(*) FROM categorias WHERE nombre = @n", conn))
                     {
                         cmdCheckCat.Parameters.AddWithValue("@n", cat);
                         long countCat = (long)cmdCheckCat.ExecuteScalar();
                         
-                        // Si el conteo es 0 (no existe), la insertamos
                         if (countCat == 0)
                         {
                             using (SqliteCommand cmdInsert = new SqliteCommand("INSERT INTO categorias (nombre) VALUES (@n)", conn))
@@ -171,64 +124,6 @@ namespace KioscoApp
                             }
                         }
                     }
-                }
-
-                // Tabla Movimientos
-                string sqlMovimientos = @"
-                    CREATE TABLE IF NOT EXISTS Movimientos_Caja (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        Tipo TEXT NOT NULL,
-                        Categoria TEXT NOT NULL,
-                        Monto DECIMAL NOT NULL,
-                        Descripcion TEXT,
-                        SesionId INTEGER
-                    );";
-                
-                using (SqliteCommand cmd = new SqliteCommand(sqlMovimientos, conn))
-                {
-                    cmd.ExecuteNonQuery();
-                }
-
-                // Agregar columna 'precio_por_kilo' a productos si no existe
-                try {
-                    SqliteCommand checkCol2 = new SqliteCommand("PRAGMA table_info(productos)", conn);
-                    bool hasPrecioPorKilo = false;
-                    using (var reader = checkCol2.ExecuteReader()) {
-                        while (reader.Read()) {
-                            if (reader.GetString(1) == "precio_por_kilo") {
-                                hasPrecioPorKilo = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!hasPrecioPorKilo) {
-                        SqliteCommand addCol2 = new SqliteCommand("ALTER TABLE productos ADD COLUMN precio_por_kilo REAL DEFAULT 0", conn);
-                        addCol2.ExecuteNonQuery();
-                    }
-                } catch (Exception ex) { 
-                    MessageBox.Show($"Error agregando columna precio_por_kilo: {ex.Message}");
-                }
-
-                // --- NUEVO: Agregar columna 'cliente_id' a ventas si no existe (PARA EL FIADO) ---
-                try {
-                    SqliteCommand checkCol3 = new SqliteCommand("PRAGMA table_info(ventas)", conn);
-                    bool hasClienteId = false;
-                    using (var reader = checkCol3.ExecuteReader()) {
-                        while (reader.Read()) {
-                            if (reader.GetString(1) == "cliente_id") {
-                                hasClienteId = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!hasClienteId) {
-                        // Agregamos la columna cliente_id permitiendo nulos (NULL)
-                        SqliteCommand addCol3 = new SqliteCommand("ALTER TABLE ventas ADD COLUMN cliente_id INTEGER DEFAULT NULL", conn);
-                        addCol3.ExecuteNonQuery();
-                    }
-                } catch (Exception ex) { 
-                    MessageBox.Show($"Error agregando columna cliente_id: {ex.Message}");
                 }
             }
         }
@@ -1247,6 +1142,62 @@ namespace KioscoApp
                 MessageBox.Show($"Error al crear categoría: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private void BtnEliminarCategoria_Click(object sender, RoutedEventArgs e)
+        {
+            // Verificamos que haya una categoría seleccionada y obtenemos su ID
+            if (cbCargaCategoria.SelectedValue is int idCategoria)
+            {
+                string nombreCat = cbCargaCategoria.Text;
+
+                // Preguntamos por las dudas
+                var result = MessageBox.Show($"¿Seguro que querés eliminar la categoría '{nombreCat}'?", 
+                                            "Confirmar Eliminación", 
+                                            MessageBoxButton.YesNo, 
+                                            MessageBoxImage.Warning);
+                                            
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        using (SqliteConnection conn = GetConnection())
+                        {
+                            conn.Open();
+                            
+                            // SEGURIDAD: Revisamos si hay productos usando esta categoría
+                            SqliteCommand cmdCheck = new SqliteCommand("SELECT COUNT(*) FROM productos WHERE categoria_id = @id", conn);
+                            cmdCheck.Parameters.AddWithValue("@id", idCategoria);
+                            long cantidadProductos = (long)cmdCheck.ExecuteScalar();
+
+                            if (cantidadProductos > 0)
+                            {
+                                MostrarAlerta($"⚠️ No podés borrar '{nombreCat}' porque hay {cantidadProductos} producto(s) usándola.\n\nCambiales la categoría primero en la pestaña Inventario.");
+                                return; // Cortamos la ejecución acá
+                            }
+
+                            // Si no hay productos, procedemos a borrarla
+                            SqliteCommand cmdDelete = new SqliteCommand("DELETE FROM categorias WHERE id = @id", conn);
+                            cmdDelete.Parameters.AddWithValue("@id", idCategoria);
+                            cmdDelete.ExecuteNonQuery();
+                        }
+
+                        // Recargamos el ComboBox para que desaparezca visualmente
+                        CargarCategorias();
+                        MostrarAlerta($"✅ Categoría '{nombreCat}' eliminada con éxito.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "Error intentando eliminar una categoría");
+                        MostrarAlerta($"❌ Error al eliminar: {ex.Message}");
+                    }
+                }
+            }
+            else
+            {
+                MostrarAlerta("⚠️ Seleccioná una categoría de la lista primero para poder borrarla.");
+            }
+        }
+
         private void BtnCancelarNuevaCategoria_Click(object sender, RoutedEventArgs e) { gridNuevaCategoria.Visibility = Visibility.Collapsed; }
 
         private void TxtGramosPeso_PreviewTextInput(object sender, TextCompositionEventArgs e)
