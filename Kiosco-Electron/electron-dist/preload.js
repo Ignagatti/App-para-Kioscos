@@ -23,8 +23,11 @@ electron_1.contextBridge.exposeInMainWorld('api', {
         addClient: (data) => electron_1.ipcRenderer.invoke('db:addClient', data),
         payClientDebt: (data) => electron_1.ipcRenderer.invoke('db:payClientDebt', data),
         getClientSales: (clientId) => electron_1.ipcRenderer.invoke('db:getClientSales', clientId),
+        deleteClient: (id) => electron_1.ipcRenderer.invoke('db:deleteClient', id),
         addMovimiento: (data) => electron_1.ipcRenderer.invoke('db:addMovimiento', data),
         getMovimientos: (sessionId) => electron_1.ipcRenderer.invoke('db:getMovimientos', sessionId),
+        clearHistory: () => electron_1.ipcRenderer.invoke('db:clearHistory'),
+        getTotalesSugeridos: (sessionId) => electron_1.ipcRenderer.invoke('db:getTotalesSugeridos', sessionId),
     },
     barcode: {
         lookup: (barcode) => electron_1.ipcRenderer.invoke('api:lookupBarcode', barcode),

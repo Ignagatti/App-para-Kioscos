@@ -102,6 +102,7 @@ export interface ElectronAPI {
         addClient: (data: { nombre: string, telefono: string }) => Promise<{ id: number }>;
         payClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
         getClientSales: (clientId: number) => Promise<Sale[]>;
+        deleteClient: (id: number) => Promise<void>;
         
         addMovimiento: (data: { tipo: string, categoria: string, monto: number, descripcion: string, sesionId: number, metodoPago: string }) => Promise<void>;
         getMovimientos: (sessionId: number) => Promise<Movement[]>;

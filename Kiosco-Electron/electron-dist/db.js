@@ -227,6 +227,15 @@ exports.dbService = {
     addClient: (n, t) => ({ id: Number(exports.db.prepare('INSERT INTO clientes (nombre, telefono, saldo) VALUES (?,?,0)').run(n, t).lastInsertRowid) }),
     payClientDebt: (id, a) => exports.db.prepare('UPDATE clientes SET saldo = saldo - ? WHERE id = ?').run(a, id),
     getClientSales: (id) => exports.db.prepare("SELECT * FROM ventas WHERE cliente_id = ? AND UPPER(metodo_pago) = 'FIADO' ORDER BY fecha DESC").all(id),
+    deleteClient: (id) => {
+        const txn = exports.db.transaction(() => {
+            // Desvincular ventas del cliente antes de borrarlo
+            exports.db.prepare('UPDATE ventas SET cliente_id = NULL WHERE cliente_id = ?').run(id);
+            // Borrar el cliente
+            exports.db.prepare('DELETE FROM clientes WHERE id = ?').run(id);
+        });
+        return txn();
+    },
     // ── Movimientos ──
     addMovimiento: (t, c, m, d, sid, p) => exports.db.prepare('INSERT INTO movimientos_caja (tipo, categoria, monto, descripcion, sesion_id, metodo_pago) VALUES (?,?,?,?,?,?)').run(t, c, m, d, sid, p),
     getMovimientos: (sid) => {

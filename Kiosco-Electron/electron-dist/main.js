@@ -115,6 +115,7 @@ electron_1.ipcMain.handle('db:getClients', () => db_1.dbService.getClients());
 electron_1.ipcMain.handle('db:addClient', (_, data) => db_1.dbService.addClient(data.nombre, data.telefono));
 electron_1.ipcMain.handle('db:payClientDebt', (_, data) => db_1.dbService.payClientDebt(data.clientId, data.amount));
 electron_1.ipcMain.handle('db:getClientSales', (_, clientId) => db_1.dbService.getClientSales(clientId));
+electron_1.ipcMain.handle('db:deleteClient', (_, id) => db_1.dbService.deleteClient(id));
 // ── Movimientos ──
 electron_1.ipcMain.handle('db:addMovimiento', (_, data) => db_1.dbService.addMovimiento(data.tipo, data.categoria, data.monto, data.descripcion, data.sesionId, data.metodoPago));
 electron_1.ipcMain.handle('db:getMovimientos', (_, sessionId) => db_1.dbService.getMovimientos(sessionId));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Plus, DollarSign, List } from 'lucide-react';
+import { Users, Search, Plus, DollarSign, List, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import type { Client, Sale } from '../types/electron';
@@ -116,6 +116,39 @@ export default function Clientes() {
         }
     };
 
+    const handleDeleteClient = async (id: number) => {
+        const result = await MySwal.fire({
+            title: '¿Estás seguro?',
+            text: "Se borrará el cliente y se desvincularán sus deudas pasadas. Esta acción no se puede deshacer.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#334155',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await window.api.db.deleteClient(id);
+                loadData();
+                MySwal.fire({
+                    icon: 'success',
+                    title: 'Cliente eliminado',
+                    timer: 1500,
+                    showConfirmButton: false,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)'
+                });
+            } catch (error) {
+                console.error("Error deleting client:", error);
+                MySwal.fire('Error', 'Error al eliminar cliente.', 'error');
+            }
+        }
+    };
+
     const filteredClients = clients.filter(c => 
         (c.nombre || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -190,6 +223,14 @@ export default function Clientes() {
                                         onClick={() => viewHistory(client)}
                                     >
                                         <List size={18} />
+                                    </button>
+                                    <button 
+                                        className="btn" 
+                                        title="Eliminar Cliente"
+                                        style={{ padding: '6px', backgroundColor: 'transparent', color: '#f87171' }} 
+                                        onClick={() => handleDeleteClient(client.id)}
+                                    >
+                                        <Trash2 size={18} />
                                     </button>
                                 </td>
                             </tr>

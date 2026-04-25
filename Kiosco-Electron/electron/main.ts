@@ -123,6 +123,7 @@ ipcMain.handle('db:getClients', () => dbService.getClients());
 ipcMain.handle('db:addClient', (_, data) => dbService.addClient(data.nombre, data.telefono));
 ipcMain.handle('db:payClientDebt', (_, data) => dbService.payClientDebt(data.clientId, data.amount));
 ipcMain.handle('db:getClientSales', (_, clientId) => dbService.getClientSales(clientId));
+ipcMain.handle('db:deleteClient', (_, id) => dbService.deleteClient(id));
 
 // ── Movimientos ──
 ipcMain.handle('db:addMovimiento', (_, data) => dbService.addMovimiento(data.tipo, data.categoria, data.monto, data.descripcion, data.sesionId, data.metodoPago));

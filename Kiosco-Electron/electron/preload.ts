@@ -22,8 +22,11 @@ contextBridge.exposeInMainWorld('api', {
         addClient: (data: any) => ipcRenderer.invoke('db:addClient', data),
         payClientDebt: (data: any) => ipcRenderer.invoke('db:payClientDebt', data),
         getClientSales: (clientId: number) => ipcRenderer.invoke('db:getClientSales', clientId),
+        deleteClient: (id: number) => ipcRenderer.invoke('db:deleteClient', id),
         addMovimiento: (data: any) => ipcRenderer.invoke('db:addMovimiento', data),
         getMovimientos: (sessionId: number) => ipcRenderer.invoke('db:getMovimientos', sessionId),
+        clearHistory: () => ipcRenderer.invoke('db:clearHistory'),
+        getTotalesSugeridos: (sessionId: number) => ipcRenderer.invoke('db:getTotalesSugeridos', sessionId),
     },
     barcode: {
         lookup: (barcode: string) => ipcRenderer.invoke('api:lookupBarcode', barcode),

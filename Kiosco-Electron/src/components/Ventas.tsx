@@ -32,6 +32,7 @@ export default function Ventas({ session }: VentasProps) {
         if (saleInputRef.current) saleInputRef.current.focus();
         
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (Swal.isVisible()) return;
             if (e.key === 'F12' && cart.length > 0 && session) {
                 handleCompleteSale('EFECTIVO');
             }
@@ -70,8 +71,9 @@ export default function Ventas({ session }: VentasProps) {
             MySwal.fire('Error', 'Debes abrir la caja primero.', 'error');
             return;
         }
-        if (metodoPago === 'FIADO' && !selectedClient) {
-            MySwal.fire('Atención', 'Debes seleccionar un cliente para vender fiado.', 'warning');
+        if (metodoPago === 'FIADO' && !selectedClient && !clientIdOverride) {
+            setIsClientSearchOpen(true);
+            setTimeout(() => clientSearchRef.current?.focus(), 50);
             return;
         }
         
@@ -142,6 +144,7 @@ export default function Ventas({ session }: VentasProps) {
         modalOpenedAt.current = Date.now();
 
         const handleModalKeys = (e: KeyboardEvent) => {
+            if (Swal.isVisible()) return;
             if (isClientSearchOpen) return; // Si está abierta la búsqueda de clientes, no procesar estas teclas
 
             // Ignorar teclas si el modal se abrió hace menos de 300ms
@@ -167,6 +170,7 @@ export default function Ventas({ session }: VentasProps) {
     }, [isPaymentModalOpen, isClientSearchOpen, cart, selectedClient, clients]);
 
     const handleClientSearchKeys = async (e: React.KeyboardEvent) => {
+        e.stopPropagation(); // Evitar que el Enter llegue al manejador del modal
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             setHighlightedClientIndex(prev => Math.min(prev + 1, filteredClientsForSearch.length));
@@ -433,8 +437,8 @@ export default function Ventas({ session }: VentasProps) {
                     <button 
                         className="btn" 
                         onClick={() => handleCompleteSale('FIADO')}
-                        disabled={cart.length === 0 || !session || !selectedClient}
-                        style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '15px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', opacity: (cart.length === 0 || !session || !selectedClient) ? 0.5 : 1 }}
+                        disabled={cart.length === 0 || !session}
+                        style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '15px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', opacity: (cart.length === 0 || !session) ? 0.5 : 1 }}
                     >
                         <User size={20} color="#f59e0b" />
                         <span>Anotar en Fiado</span>
@@ -483,8 +487,8 @@ export default function Ventas({ session }: VentasProps) {
 
                             <button 
                                 onClick={() => handleCompleteSale('FIADO')}
-                                disabled={!selectedClient}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', backgroundColor: selectedClient ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.05)', border: `2px solid ${selectedClient ? '#f59e0b' : '#334155'}`, borderRadius: '16px', color: 'white', cursor: selectedClient ? 'pointer' : 'not-allowed', opacity: selectedClient ? 1 : 0.5 }}
+                                disabled={cart.length === 0}
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', backgroundColor: selectedClient ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.05)', border: `2px solid ${selectedClient ? '#f59e0b' : '#334155'}`, borderRadius: '16px', color: 'white', cursor: cart.length > 0 ? 'pointer' : 'not-allowed', opacity: cart.length > 0 ? 1 : 0.5 }}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                     <div style={{ backgroundColor: selectedClient ? '#f59e0b' : '#334155', padding: '10px', borderRadius: '12px' }}><User size={24} /></div>
