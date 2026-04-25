@@ -26,8 +26,6 @@ export default function Ventas({ session }: VentasProps) {
     const [searchResults, setSearchResults] = useState<Product[]>([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
-    const [enterCount, setEnterCount] = useState(0);
-    const enterTimeout = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         loadClients();
@@ -44,7 +42,7 @@ export default function Ventas({ session }: VentasProps) {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [cart, session]);
+    }, [cart, session, selectedClient]);
 
     // Búsqueda en tiempo real (debounce)
     useEffect(() => {
@@ -67,7 +65,7 @@ export default function Ventas({ session }: VentasProps) {
 
     const lastEnterTime = useRef<number>(0);
 
-    const handleCompleteSale = async (metodoPago: string) => {
+    const handleCompleteSale = async (metodoPago: string, clientIdOverride?: number | null) => {
         if (!session) {
             MySwal.fire('Error', 'Debes abrir la caja primero.', 'error');
             return;
@@ -83,7 +81,7 @@ export default function Ventas({ session }: VentasProps) {
                 total: total,
                 paymentMethod: metodoPago,
                 sessionId: session.id,
-                clientId: metodoPago === 'FIADO' ? selectedClient : null,
+                clientId: metodoPago === 'FIADO' ? (clientIdOverride ?? selectedClient) : null,
                 items: cart.map(item => ({
                     id: item.id,
                     codigo_barras: item.codigo_barras,
@@ -180,13 +178,13 @@ export default function Ventas({ session }: VentasProps) {
             if (filteredClientsForSearch.length > 0 && highlightedClientIndex < filteredClientsForSearch.length) {
                 const client = filteredClientsForSearch[highlightedClientIndex];
                 setSelectedClient(client.id);
-                handleCompleteSale('FIADO');
+                handleCompleteSale('FIADO', client.id);
             } else if (clientSearch.trim()) {
                 // Crear cliente nuevo si no hay resultados o si se elige "Crear"
                 const res = await window.api.db.addClient({ nombre: clientSearch.trim(), telefono: '' });
                 setSelectedClient(res.id);
                 await loadClients();
-                handleCompleteSale('FIADO');
+                handleCompleteSale('FIADO', res.id);
             }
         } else if (e.key === 'Escape') {
             setIsClientSearchOpen(false);
@@ -536,20 +534,31 @@ export default function Ventas({ session }: VentasProps) {
                                             }}
                                         >
                                             <div style={{ fontWeight: 600 }}>{c.nombre}</div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Saldo: ${c.saldo.toLocaleString()}</div>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Saldo: ${(c.saldo || 0).toLocaleString()}</div>
                                         </div>
                                     ))}
-                                    {clientSearch.trim() && filteredClientsForSearch.length === 0 && (
+                                    
+                                    {clientSearch.trim() && (
                                         <div 
                                             style={{ 
-                                                padding: '20px', 
-                                                textAlign: 'center', 
-                                                color: '#4ade80', 
-                                                backgroundColor: highlightedClientIndex === 0 ? 'rgba(74, 222, 128, 0.1)' : 'transparent' 
+                                                padding: '12px 20px', 
+                                                backgroundColor: highlightedClientIndex === filteredClientsForSearch.length ? 'rgba(74, 222, 128, 0.1)' : 'transparent',
+                                                borderTop: filteredClientsForSearch.length > 0 ? '1px dashed var(--border)' : 'none',
+                                                cursor: 'pointer',
+                                                textAlign: 'center'
+                                            }}
+                                            onClick={async () => {
+                                                const res = await window.api.db.addClient({ nombre: clientSearch.trim(), telefono: '' });
+                                                setSelectedClient(res.id);
+                                                await loadClients();
+                                                handleCompleteSale('FIADO', res.id);
                                             }}
                                         >
-                                            No existe: <strong>"{clientSearch}"</strong><br/>
-                                            <span style={{ fontSize: '0.85rem' }}>Presioná [Enter] para crearlo y cobrar</span>
+                                            <div style={{ color: '#4ade80', fontWeight: 600 }}>
+                                                {filteredClientsForSearch.length > 0 ? '¿No está en la lista?' : 'No existe:'} 
+                                                <span style={{ color: 'var(--text-primary)' }}> "{clientSearch}"</span>
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Presioná [Enter] para crear y cobrar</div>
                                         </div>
                                     )}
                                 </div>
