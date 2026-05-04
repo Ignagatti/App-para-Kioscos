@@ -156,9 +156,9 @@ export const dbService = {
 
     // ── Caja ──
     getSessionStatus: () => db.prepare("SELECT * FROM sesiones_caja WHERE estado = 'ABIERTA' LIMIT 1").get(),
-    openCaja: (monto: number) => ({ id: Number(db.prepare("INSERT INTO sesiones_caja (monto_inicial) VALUES (?)").run(monto).lastInsertRowid) }),
+    openCaja: (monto: number) => ({ id: Number(db.prepare("INSERT INTO sesiones_caja (monto_inicial, fecha_apertura) VALUES (?,datetime('now','-3 hours'))").run(monto).lastInsertRowid) }),
     closeCaja: (id: number, ef: number, ot: number) => {
-        db.prepare("UPDATE sesiones_caja SET monto_final_efectivo=?, monto_final_otros=?, fecha_cierre=datetime('now','localtime'), estado='CERRADA' WHERE id=?").run(ef, ot, id);
+        db.prepare("UPDATE sesiones_caja SET monto_final_efectivo=?, monto_final_otros=?, fecha_cierre=datetime('now','-3 hours'), estado='CERRADA' WHERE id=?").run(ef, ot, id);
         return { success: true };
     },
 
@@ -208,7 +208,7 @@ export const dbService = {
     // ── Ventas ──
     createSale: (total: number, itemsCount: number, method: string, sid: number, cid: number | null, items: any[]) => {
         const txn = db.transaction(() => {
-            const res = db.prepare('INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id, cliente_id) VALUES (?,?,?,?,?)').run(total, itemsCount, method, sid, cid);
+            const res = db.prepare("INSERT INTO ventas (total, cantidad_items, metodo_pago, sesion_id, cliente_id, fecha) VALUES (?,?,?,?,?,datetime('now','-3 hours'))").run(total, itemsCount, method, sid, cid);
             const vid = Number(res.lastInsertRowid);
             const ins = db.prepare('INSERT INTO venta_detalles (venta_id, nombre, precio, costo_unitario, cantidad, subtotal) VALUES (?,?,?,?,?,?)');
             const up = db.prepare('UPDATE productos SET stock = stock - ? WHERE id = ?');
@@ -255,7 +255,7 @@ export const dbService = {
     },
 
     // ── Movimientos ──
-    addMovimiento: (t: string, c: string, m: number, d: string, sid: number, p: string) => db.prepare('INSERT INTO movimientos_caja (tipo, categoria, monto, descripcion, sesion_id, metodo_pago) VALUES (?,?,?,?,?,?)').run(t, c, m, d, sid, p),
+    addMovimiento: (t: string, c: string, m: number, d: string, sid: number, p: string) => db.prepare("INSERT INTO movimientos_caja (tipo, categoria, monto, descripcion, sesion_id, metodo_pago, fecha) VALUES (?,?,?,?,?,?,datetime('now','-3 hours'))").run(t, c, m, d, sid, p),
     
     getMovimientos: (sid: number) => {
         return db.prepare(`
