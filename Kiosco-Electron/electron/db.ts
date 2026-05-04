@@ -141,9 +141,18 @@ export const dbService = {
 
     deleteProduct: (id: number) => db.prepare('DELETE FROM productos WHERE id = ?').run(id),
 
+    getLastClosingAmount: () => {
+        const row = db.prepare("SELECT monto_final_efectivo FROM sesiones_caja WHERE estado = 'CERRADA' ORDER BY fecha_cierre DESC LIMIT 1").get() as { monto_final_efectivo: number } | undefined;
+        return row?.monto_final_efectivo ?? null;
+    },
+
     // ── Categorías ──
     getCategories: () => db.prepare('SELECT * FROM categorias ORDER BY nombre').all(),
-    addCategory: (nombre: string) => Number(db.prepare('INSERT OR IGNORE INTO categorias (nombre) VALUES (?)').run(nombre).lastInsertRowid),
+    addCategory: (nombre: string) => {
+        db.prepare('INSERT OR IGNORE INTO categorias (nombre) VALUES (?)').run(nombre);
+        const row = db.prepare('SELECT id FROM categorias WHERE nombre = ?').get(nombre) as { id: number } | undefined;
+        return row?.id ?? 0;
+    },
 
     // ── Caja ──
     getSessionStatus: () => db.prepare("SELECT * FROM sesiones_caja WHERE estado = 'ABIERTA' LIMIT 1").get(),
@@ -231,8 +240,9 @@ export const dbService = {
 
     // ── Clientes ──
     getClients: () => db.prepare('SELECT * FROM clientes ORDER BY nombre').all(),
-    addClient: (n: string, t: string) => ({ id: Number(db.prepare('INSERT INTO clientes (nombre, telefono, saldo) VALUES (?,?,0)').run(n, t).lastInsertRowid) }),
+    addClient: (n: string, t: string, s: number) => ({ id: Number(db.prepare('INSERT INTO clientes (nombre, telefono, saldo) VALUES (?,?,?)').run(n, t, s).lastInsertRowid) }),
     payClientDebt: (id: number, a: number) => db.prepare('UPDATE clientes SET saldo = saldo - ? WHERE id = ?').run(a, id),
+    addClientDebt: (id: number, amount: number) => db.prepare('UPDATE clientes SET saldo = saldo + ? WHERE id = ?').run(amount, id),
     getClientSales: (id: number) => db.prepare("SELECT * FROM ventas WHERE cliente_id = ? AND UPPER(metodo_pago) = 'FIADO' ORDER BY fecha DESC").all(id),
     deleteClient: (id: number) => {
         const txn = db.transaction(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Unlock, DollarSign, ArrowDownRight, ArrowUpRight, FileText } from 'lucide-react';
+import { Lock, Unlock, DollarSign } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import type { SessionStatus, Movement } from '../types/electron';
@@ -12,11 +12,12 @@ interface CajaProps {
 }
 
 export default function Caja({ session, onSessionChange }: CajaProps) {
-    const [montoInicial, setMontoInicial] = useState<number | ''>('');
-    
+    const [montoInicial, setMontoInicial] = useState('');
+    const [lastClosingAmount, setLastClosingAmount] = useState<number | null>(null);
+
     // Close Session State
-    const [montoEfectivo, setMontoEfectivo] = useState<number | ''>('');
-    const [montoOtros, setMontoOtros] = useState<number | ''>('');
+    const [montoEfectivo, setMontoEfectivo] = useState('');
+    const [montoOtros, setMontoOtros] = useState('');
     
     // Movement State
     const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
@@ -28,6 +29,19 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
     
     const [movimientos, setMovimientos] = useState<Movement[]>([]);
     const [cajaTotal, setCajaTotal] = useState({ efectivo: 0, otros: 0 });
+
+    useEffect(() => {
+        if (!session) {
+            window.api.db.getLastClosingAmount().then(amount => {
+                if (amount !== null && amount !== undefined) {
+                    setLastClosingAmount(amount);
+                    setMontoInicial(String(amount));
+                } else {
+                    setLastClosingAmount(null);
+                }
+            }).catch(() => {});
+        }
+    }, [session]);
 
     useEffect(() => {
         if (session) {
@@ -70,13 +84,17 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
 
     const handleOpen = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (montoInicial === '') {
+        const mi = parseFloat(montoInicial.replace(/\./g, '').replace(',', '.'));
+        if (!montoInicial.trim() || isNaN(mi) || mi < 0) {
             MySwal.fire('Atención', 'Ingresa un monto inicial válido.', 'warning');
             return;
         }
+        if (lastClosingAmount !== null && mi > lastClosingAmount) {
+            MySwal.fire('Atención', `El monto inicial ($${mi.toLocaleString()}) no puede superar el monto de cierre anterior ($${lastClosingAmount.toLocaleString()}).`, 'warning');
+            return;
+        }
         try {
-            const mi = typeof montoInicial === 'string' ? parseFloat(montoInicial.replace(/\./g, '').replace(',', '.')) : montoInicial;
-            await window.api.db.openCaja(mi || 0);
+            await window.api.db.openCaja(mi);
             const newSession = await window.api.db.getSessionStatus();
             onSessionChange(newSession || null);
             setMontoInicial('');
@@ -97,11 +115,13 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
     const handleClose = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!session) return;
-        if (montoEfectivo === '' || montoOtros === '') {
+        const ef = parseFloat(montoEfectivo.replace(/\./g, '').replace(',', '.'));
+        const ot = parseFloat(montoOtros.replace(/\./g, '').replace(',', '.'));
+        if (!montoEfectivo.trim() || isNaN(ef) || !montoOtros.trim() || isNaN(ot)) {
             MySwal.fire('Atención', 'Ingresa los montos finales.', 'warning');
             return;
         }
-        
+
         const result = await MySwal.fire({
             title: '¿Cerrar caja?',
             text: "Estás por cerrar el turno actual.",
@@ -117,11 +137,6 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
 
         if (result.isConfirmed) {
             try {
-                const ef = typeof montoEfectivo === 'string' ? parseFloat(montoEfectivo.replace(/\./g, '').replace(',', '.')) : montoEfectivo;
-                const ot = typeof montoOtros === 'string' ? parseFloat(montoOtros.replace(/\./g, '').replace(',', '.')) : montoOtros;
-                
-                console.log("Cerrando caja con:", { id: session.id, ef, ot });
-
                 await window.api.db.closeCaja({
                     sessionId: session.id,
                     montoEfectivo: ef || 0,
@@ -198,11 +213,13 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                             </div>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)' }}>Monto Inicial ($)</label>
-                                <input 
-                                    type="number" 
-                                    step="1" 
-                                    required 
-                                    value={montoInicial} 
+                                <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    max={lastClosingAmount ?? undefined}
+                                    required
+                                    value={montoInicial}
                                     onChange={e => setMontoInicial(e.target.value)}
                                     style={{ width: '100%', padding: '15px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '1.1rem', boxSizing: 'border-box' }}
                                 />
@@ -399,7 +416,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                                     step="1" 
                                     required 
                                     value={movMonto} 
-                                    onChange={e => setMovMonto(e.target.value)} 
+                                    onChange={e => setMovMonto(e.target.value ? Number(e.target.value) : '')} 
                                     style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }} 
                                 />
                             </div>

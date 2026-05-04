@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, Plus, DollarSign, List, Trash2 } from 'lucide-react';
+import { Search, Plus, DollarSign, List, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import type { Client, Sale } from '../types/electron';
@@ -13,7 +13,7 @@ export default function Clientes() {
     
     // Modal state for New Client
     const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-    const [newClient, setNewClient] = useState({ nombre: '', telefono: '' });
+    const [newClient, setNewClient] = useState({ nombre: '', telefono: '', saldo: '' });
     
     // Modal state for Payment
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -61,9 +61,10 @@ export default function Clientes() {
             return;
         }
         try {
-            await window.api.db.addClient({ nombre: newClient.nombre, telefono: newClient.telefono });
+            const saldo = parseFloat(newClient.saldo) || 0;
+            await window.api.db.addClient({ nombre: newClient.nombre, telefono: newClient.telefono, saldo });
             setIsNewModalOpen(false);
-            setNewClient({ nombre: '', telefono: '' });
+            setNewClient({ nombre: '', telefono: '', saldo: '' });
             loadData();
             MySwal.fire({
                 icon: 'success',
@@ -82,7 +83,11 @@ export default function Clientes() {
     const handlePayment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedClient || paymentAmount === '' || paymentAmount <= 0) {
-            MySwal.fire('Atención', 'Ingresa un monto válido.', 'warning');
+            MySwal.fire('Atención', 'Ingresa un monto válido mayor a cero.', 'warning');
+            return;
+        }
+        if (Number(paymentAmount) > (selectedClient.saldo || 0)) {
+            MySwal.fire('Atención', `El monto ingresado ($${Number(paymentAmount).toLocaleString()}) supera la deuda actual ($${(selectedClient.saldo || 0).toLocaleString()}).`, 'warning');
             return;
         }
         try {
@@ -253,6 +258,10 @@ export default function Clientes() {
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Teléfono</label>
                                 <input type="text" value={newClient.telefono} onChange={e => setNewClient({ ...newClient, telefono: e.target.value })} style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
                             </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Deuda inicial ($)</label>
+                                <input type="number" step="0.01" min="0" placeholder="0" value={newClient.saldo} onChange={e => setNewClient({ ...newClient, saldo: e.target.value })} style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+                            </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                                 <button type="button" className="btn" onClick={() => setIsNewModalOpen(false)} style={{ backgroundColor: 'transparent', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>Cancelar</button>
                                 <button type="submit" className="btn btn-primary">Guardar</button>
@@ -271,7 +280,7 @@ export default function Clientes() {
                         <form onSubmit={handlePayment} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Monto a pagar ($) *</label>
-                                <input type="number" step="0.01" required value={paymentAmount} onChange={e => setPaymentAmount(e.target.value ? Number(e.target.value) : '')} style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+                                <input type="number" step="0.01" min="0.01" max={selectedClient.saldo || 0} required value={paymentAmount} onChange={e => setPaymentAmount(e.target.value ? Number(e.target.value) : '')} style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                                 <button type="button" className="btn" onClick={() => setIsPaymentModalOpen(false)} style={{ backgroundColor: 'transparent', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>Cancelar</button>
@@ -286,7 +295,7 @@ export default function Clientes() {
             {isHistoryModalOpen && selectedClient && (
                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                  <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '16px', width: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: '1px solid var(--border)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
-                     <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.5rem', fontWeight: 600 }}>Historial de Fiados - {selectedClient.Nombre}</h3>
+                     <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.5rem', fontWeight: 600 }}>Historial de Fiados - {selectedClient.nombre}</h3>
                      <div className="data-table-container" style={{ flex: 1, overflowY: 'auto' }}>
                         <table style={{ width: '100%' }}>
                             <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1 }}>

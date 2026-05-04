@@ -111,9 +111,11 @@ electron_1.ipcMain.handle('db:getReportDetail', () => db_1.dbService.getReportDe
 electron_1.ipcMain.handle('db:getReportMonthly', () => db_1.dbService.getReportMonthly());
 electron_1.ipcMain.handle('db:clearHistory', () => db_1.dbService.clearHistory());
 // ── Clientes ──
+electron_1.ipcMain.handle('db:getLastClosingAmount', () => db_1.dbService.getLastClosingAmount());
 electron_1.ipcMain.handle('db:getClients', () => db_1.dbService.getClients());
-electron_1.ipcMain.handle('db:addClient', (_, data) => db_1.dbService.addClient(data.nombre, data.telefono));
+electron_1.ipcMain.handle('db:addClient', (_, data) => db_1.dbService.addClient(data.nombre, data.telefono, data.saldo || 0));
 electron_1.ipcMain.handle('db:payClientDebt', (_, data) => db_1.dbService.payClientDebt(data.clientId, data.amount));
+electron_1.ipcMain.handle('db:addClientDebt', (_, data) => db_1.dbService.addClientDebt(data.clientId, data.amount));
 electron_1.ipcMain.handle('db:getClientSales', (_, clientId) => db_1.dbService.getClientSales(clientId));
 electron_1.ipcMain.handle('db:deleteClient', (_, id) => db_1.dbService.deleteClient(id));
 // ── Movimientos ──

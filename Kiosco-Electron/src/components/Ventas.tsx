@@ -66,6 +66,38 @@ export default function Ventas({ session }: VentasProps) {
 
     const lastEnterTime = useRef<number>(0);
 
+    const buildItems = () => cart.map(item => ({
+        id: item.id,
+        codigo_barras: item.codigo_barras,
+        nombre: item.nombre,
+        precio: item.precio,
+        precio_costo: item.precio_costo,
+        cantidad: item.cantidad,
+        subtotal: item.subtotal
+    }));
+
+    const finalizeSale = async (total: number, metodoPago: string, clientId: number | null) => {
+        await window.api.db.createSale({
+            total,
+            paymentMethod: metodoPago,
+            sessionId: session!.id,
+            clientId,
+            items: buildItems()
+        });
+        setCart([]);
+        setSelectedClient(null);
+        setIsPaymentModalOpen(false);
+        MySwal.fire({
+            icon: 'success',
+            title: 'Venta completada',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            timer: 1500,
+            showConfirmButton: false
+        });
+        setTimeout(() => { if (saleInputRef.current) saleInputRef.current.focus(); }, 100);
+    };
+
     const handleCompleteSale = async (metodoPago: string, clientIdOverride?: number | null) => {
         if (!session) {
             MySwal.fire('Error', 'Debes abrir la caja primero.', 'error');
@@ -76,39 +108,72 @@ export default function Ventas({ session }: VentasProps) {
             setTimeout(() => clientSearchRef.current?.focus(), 50);
             return;
         }
-        
-        try {
-            const total = cart.reduce((acc, item) => acc + (item.subtotal || 0), 0);
-            await window.api.db.createSale({
-                total: total,
-                paymentMethod: metodoPago,
-                sessionId: session.id,
-                clientId: metodoPago === 'FIADO' ? (clientIdOverride ?? selectedClient) : null,
-                items: cart.map(item => ({
-                    id: item.id,
-                    codigo_barras: item.codigo_barras,
-                    nombre: item.nombre,
-                    precio: item.precio,
-                    precio_costo: item.precio_costo,
-                    cantidad: item.cantidad,
-                    subtotal: item.subtotal
-                }))
-            });
-            
-            setCart([]);
-            setSelectedClient(null);
-            setIsPaymentModalOpen(false);
-            MySwal.fire({
-                icon: 'success',
-                title: 'Venta completada',
+
+        const total = cart.reduce((acc, item) => acc + (item.subtotal || 0), 0);
+
+        // Pago mixto: cliente seleccionado + método efectivo u otros
+        if (selectedClient && (metodoPago === 'EFECTIVO' || metodoPago === 'OTROS')) {
+            const { value: abonoStr, isConfirmed } = await MySwal.fire({
+                title: 'Pago con Cliente',
+                html: `<p style="margin-bottom:8px">Total: <strong style="font-size:1.2rem">$${total.toLocaleString()}</strong></p>
+                       <p style="margin:0;opacity:0.75;font-size:0.9rem">¿Cuánto abona ahora? (0 = todo a fiado)</p>`,
+                input: 'number',
+                inputPlaceholder: `Máximo $${total.toLocaleString()}`,
+                showCancelButton: true,
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#3b82f6',
+                cancelButtonColor: '#334155',
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)',
-                timer: 1500,
-                showConfirmButton: false
+                inputAttributes: { min: '0', step: '1' },
+                inputValidator: (value) => {
+                    if (value === '' || value === null) return 'Ingresá un monto (puede ser 0).';
+                    const n = parseFloat(value);
+                    if (isNaN(n) || n < 0) return 'Ingresá un número válido mayor o igual a 0.';
+                    if (n > total) return `El monto no puede superar el total de $${total.toLocaleString()}.`;
+                }
             });
-            setTimeout(() => {
-                if (saleInputRef.current) saleInputRef.current.focus();
-            }, 100);
+
+            if (!isConfirmed) return;
+
+            const abono = parseFloat(abonoStr);
+            const deuda = Math.round((total - abono) * 100) / 100;
+
+            try {
+                if (abono <= 0) {
+                    // Todo va a fiado
+                    await finalizeSale(total, 'FIADO', selectedClient);
+                } else if (deuda <= 0) {
+                    // Paga el total completo: venta normal sin deuda
+                    await finalizeSale(total, metodoPago, null);
+                } else {
+                    // Pago mixto: abona algo ahora, el resto queda como deuda
+                    await finalizeSale(total, metodoPago, null);
+                    await window.api.db.addClientDebt({ clientId: selectedClient, amount: deuda });
+                    // Corrección de caja: restamos la parte que NO se cobró en efectivo
+                    await window.api.db.addMovimiento({
+                        tipo: 'SALIDA',
+                        categoria: 'Fiado Parcial',
+                        monto: deuda,
+                        descripcion: `Deuda por pago parcial`,
+                        sesionId: session.id,
+                        metodoPago: metodoPago
+                    });
+                }
+            } catch (error) {
+                console.error("Error al completar venta:", error);
+                MySwal.fire('Error', 'Hubo un error al procesar la venta.', 'error');
+            }
+            return;
+        }
+
+        try {
+            await finalizeSale(
+                total,
+                metodoPago,
+                metodoPago === 'FIADO' ? (clientIdOverride ?? selectedClient) : null
+            );
         } catch (error) {
             console.error("Error al completar venta:", error);
             MySwal.fire('Error', 'Hubo un error al procesar la venta.', 'error');

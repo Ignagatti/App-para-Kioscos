@@ -119,9 +119,11 @@ ipcMain.handle('db:getReportMonthly', () => dbService.getReportMonthly());
 ipcMain.handle('db:clearHistory', () => dbService.clearHistory());
 
 // ── Clientes ──
+ipcMain.handle('db:getLastClosingAmount', () => dbService.getLastClosingAmount());
 ipcMain.handle('db:getClients', () => dbService.getClients());
-ipcMain.handle('db:addClient', (_, data) => dbService.addClient(data.nombre, data.telefono));
+ipcMain.handle('db:addClient', (_, data) => dbService.addClient(data.nombre, data.telefono, data.saldo || 0));
 ipcMain.handle('db:payClientDebt', (_, data) => dbService.payClientDebt(data.clientId, data.amount));
+ipcMain.handle('db:addClientDebt', (_, data) => dbService.addClientDebt(data.clientId, data.amount));
 ipcMain.handle('db:getClientSales', (_, clientId) => dbService.getClientSales(clientId));
 ipcMain.handle('db:deleteClient', (_, id) => dbService.deleteClient(id));
 

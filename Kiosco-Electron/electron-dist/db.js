@@ -139,9 +139,17 @@ exports.dbService = {
         }
     },
     deleteProduct: (id) => exports.db.prepare('DELETE FROM productos WHERE id = ?').run(id),
+    getLastClosingAmount: () => {
+        const row = exports.db.prepare("SELECT monto_final_efectivo FROM sesiones_caja WHERE estado = 'CERRADA' ORDER BY fecha_cierre DESC LIMIT 1").get();
+        return row?.monto_final_efectivo ?? null;
+    },
     // ── Categorías ──
     getCategories: () => exports.db.prepare('SELECT * FROM categorias ORDER BY nombre').all(),
-    addCategory: (nombre) => Number(exports.db.prepare('INSERT OR IGNORE INTO categorias (nombre) VALUES (?)').run(nombre).lastInsertRowid),
+    addCategory: (nombre) => {
+        exports.db.prepare('INSERT OR IGNORE INTO categorias (nombre) VALUES (?)').run(nombre);
+        const row = exports.db.prepare('SELECT id FROM categorias WHERE nombre = ?').get(nombre);
+        return row?.id ?? 0;
+    },
     // ── Caja ──
     getSessionStatus: () => exports.db.prepare("SELECT * FROM sesiones_caja WHERE estado = 'ABIERTA' LIMIT 1").get(),
     openCaja: (monto) => ({ id: Number(exports.db.prepare("INSERT INTO sesiones_caja (monto_inicial) VALUES (?)").run(monto).lastInsertRowid) }),
@@ -224,8 +232,9 @@ exports.dbService = {
     `).all(),
     // ── Clientes ──
     getClients: () => exports.db.prepare('SELECT * FROM clientes ORDER BY nombre').all(),
-    addClient: (n, t) => ({ id: Number(exports.db.prepare('INSERT INTO clientes (nombre, telefono, saldo) VALUES (?,?,0)').run(n, t).lastInsertRowid) }),
+    addClient: (n, t, s) => ({ id: Number(exports.db.prepare('INSERT INTO clientes (nombre, telefono, saldo) VALUES (?,?,?)').run(n, t, s).lastInsertRowid) }),
     payClientDebt: (id, a) => exports.db.prepare('UPDATE clientes SET saldo = saldo - ? WHERE id = ?').run(a, id),
+    addClientDebt: (id, amount) => exports.db.prepare('UPDATE clientes SET saldo = saldo + ? WHERE id = ?').run(amount, id),
     getClientSales: (id) => exports.db.prepare("SELECT * FROM ventas WHERE cliente_id = ? AND UPPER(metodo_pago) = 'FIADO' ORDER BY fecha DESC").all(id),
     deleteClient: (id) => {
         const txn = exports.db.transaction(() => {

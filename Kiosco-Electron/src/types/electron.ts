@@ -85,6 +85,7 @@ export interface ElectronAPI {
         getCategories: () => Promise<Category[]>;
         addCategory: (nombre: string) => Promise<number>;
         
+        getLastClosingAmount: () => Promise<number | null>;
         getSessionStatus: () => Promise<SessionStatus | undefined>;
         openCaja: (monto: number) => Promise<{ id: number }>;
         closeCaja: (data: { sessionId: number, montoEfectivo: number, montoOtros: number }) => Promise<void>;
@@ -99,8 +100,9 @@ export interface ElectronAPI {
         clearHistory: () => Promise<void>;
         
         getClients: () => Promise<Client[]>;
-        addClient: (data: { nombre: string, telefono: string }) => Promise<{ id: number }>;
+        addClient: (data: { nombre: string, telefono: string, saldo?: number }) => Promise<{ id: number }>;
         payClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
+        addClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
         getClientSales: (clientId: number) => Promise<Sale[]>;
         deleteClient: (id: number) => Promise<void>;
         
