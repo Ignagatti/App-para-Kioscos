@@ -14,9 +14,10 @@ interface CartItem extends Product {
 
 interface VentasProps {
     session: SessionStatus | null;
+    quickPayKey?: string;
 }
 
-export default function Ventas({ session }: VentasProps) {
+export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [saleSearch, setSaleSearch] = useState('');
     const [clients, setClients] = useState<Client[]>([]);
@@ -33,7 +34,7 @@ export default function Ventas({ session }: VentasProps) {
         
         const handleKeyDown = (e: KeyboardEvent) => {
             if (Swal.isVisible()) return;
-            if (e.key === 'F12' && cart.length > 0 && session) {
+            if (e.key === quickPayKey && cart.length > 0 && session) {
                 handleCompleteSale('EFECTIVO');
             }
             if (e.key === 'Escape') {
@@ -43,7 +44,7 @@ export default function Ventas({ session }: VentasProps) {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [cart, session, selectedClient]);
+    }, [cart, session, selectedClient, quickPayKey]);
 
     // Búsqueda en tiempo real (debounce)
     useEffect(() => {
@@ -87,14 +88,16 @@ export default function Ventas({ session }: VentasProps) {
         setCart([]);
         setSelectedClient(null);
         setIsPaymentModalOpen(false);
+        
         MySwal.fire({
             icon: 'success',
             title: 'Venta completada',
             background: 'var(--bg-card)',
             color: 'var(--text-primary)',
-            timer: 1500,
+            timer: 1000,
             showConfirmButton: false
         });
+        
         setTimeout(() => { if (saleInputRef.current) saleInputRef.current.focus(); }, 100);
     };
 
@@ -169,6 +172,55 @@ export default function Ventas({ session }: VentasProps) {
         }
 
         try {
+            if (metodoPago === 'EFECTIVO') {
+                const { value: pagaConStr, isConfirmed } = await MySwal.fire({
+                    title: 'Cobro en Efectivo',
+                    html: `
+                        <div style="font-size: 1.5rem; margin-bottom: 20px;">Total: <strong style="color: #4ade80;">$${total.toLocaleString()}</strong></div>
+                        <div style="margin-bottom: 10px; opacity: 0.8;">¿Con cuánto paga el cliente?</div>
+                        <input id="paga-con" type="number" class="swal2-input" style="width: 80%; margin: 10px auto; text-align: center; font-size: 1.8rem; font-weight: 700; color: white; background: #1e293b; border: 1px solid #334155;" placeholder="0">
+                        <div id="vuelto-display" style="font-size: 2.2rem; font-weight: 800; color: #4ade80; margin-top: 15px; min-height: 3.5rem;"></div>
+                    `,
+                    didOpen: () => {
+                        const input = document.getElementById('paga-con') as HTMLInputElement;
+                        const display = document.getElementById('vuelto-display');
+                        input.focus();
+                        
+                        input.onkeydown = (e) => {
+                            if (e.key === 'Enter') {
+                                MySwal.clickConfirm();
+                            }
+                        };
+
+                        input.oninput = () => {
+                            const val = parseFloat(input.value) || 0;
+                            if (val >= total) {
+                                display!.innerHTML = `<span style="font-size: 1rem; opacity: 0.7; display: block;">Vuelto:</span> $${(val - total).toLocaleString()}`;
+                            } else {
+                                display!.innerHTML = '';
+                            }
+                        };
+                    },
+                    preConfirm: () => {
+                        const input = document.getElementById('paga-con') as HTMLInputElement;
+                        const val = parseFloat(input.value);
+                        if (isNaN(val) || val < total) {
+                            Swal.showValidationMessage(`El monto debe ser al menos $${total.toLocaleString()}`);
+                            return false;
+                        }
+                        return input.value;
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Completar Venta',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#22c55e',
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-primary)',
+                });
+
+                if (!isConfirmed) return;
+            }
+
             await finalizeSale(
                 total,
                 metodoPago,

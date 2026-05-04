@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { 
-  ShoppingBag, 
-  Package, 
-  BarChart3, 
-  Users, 
+import {
+  ShoppingBag,
+  Package,
+  BarChart3,
+  Users,
   ShoppingCart,
   Wallet,
   Moon,
-  Sun
+  Sun,
+  Settings,
 } from 'lucide-react';
 import type { SessionStatus } from './types/electron';
+import { useShortcuts } from './hooks/useShortcuts';
 
 // Components
 import Ventas from './components/Ventas';
@@ -17,11 +19,14 @@ import Inventario from './components/Inventario';
 import Reportes from './components/Reportes';
 import Clientes from './components/Clientes';
 import Caja from './components/Caja';
+import Configuracion from './components/Configuracion';
 
 function App() {
   const [activeTab, setActiveTab] = useState('venta');
   const [session, setSession] = useState<SessionStatus | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  const { shortcuts, setShortcut, resetShortcuts } = useShortcuts();
 
   useEffect(() => {
     document.body.className = theme;
@@ -29,17 +34,17 @@ function App() {
 
   useEffect(() => {
     loadSession();
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F1') setActiveTab('venta');
-      if (e.key === 'F2') setActiveTab('inventario');
-      if (e.key === 'F3') setActiveTab('reportes');
-      if (e.key === 'F4') setActiveTab('clientes');
-      if (e.key === 'F5') setActiveTab('caja');
+      if (e.key === shortcuts.tabVentas)    setActiveTab('venta');
+      if (e.key === shortcuts.tabInventario) setActiveTab('inventario');
+      if (e.key === shortcuts.tabReportes)  setActiveTab('reportes');
+      if (e.key === shortcuts.tabClientes)  setActiveTab('clientes');
+      if (e.key === shortcuts.tabCaja)      setActiveTab('caja');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [shortcuts]);
 
   const loadSession = async () => {
     try {
@@ -58,33 +63,37 @@ function App() {
           <ShoppingBag className="text-primary" size={28} />
           <h1>Kiosco Pro</h1>
         </div>
-        
+
         <nav>
           <div className={`nav-item ${activeTab === 'venta' ? 'active' : ''}`} onClick={() => setActiveTab('venta')}>
             <ShoppingCart size={20} />
-            <span>Ventas (F1)</span>
+            <span>Ventas ({shortcuts.tabVentas})</span>
           </div>
           <div className={`nav-item ${activeTab === 'inventario' ? 'active' : ''}`} onClick={() => setActiveTab('inventario')}>
             <Package size={20} />
-            <span>Inventario (F2)</span>
+            <span>Inventario ({shortcuts.tabInventario})</span>
           </div>
           <div className={`nav-item ${activeTab === 'caja' ? 'active' : ''}`} onClick={() => setActiveTab('caja')}>
             <Wallet size={20} />
-            <span>Caja (F5)</span>
+            <span>Caja ({shortcuts.tabCaja})</span>
           </div>
           <div className={`nav-item ${activeTab === 'clientes' ? 'active' : ''}`} onClick={() => setActiveTab('clientes')}>
             <Users size={20} />
-            <span>Clientes/Fiados (F4)</span>
+            <span>Clientes/Fiados ({shortcuts.tabClientes})</span>
           </div>
           <div className={`nav-item ${activeTab === 'reportes' ? 'active' : ''}`} onClick={() => setActiveTab('reportes')}>
             <BarChart3 size={20} />
-            <span>Reportes (F3)</span>
+            <span>Reportes ({shortcuts.tabReportes})</span>
+          </div>
+          <div className={`nav-item ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => setActiveTab('configuracion')}>
+            <Settings size={20} />
+            <span>Configuración</span>
           </div>
         </nav>
 
         <div style={{ marginTop: 'auto', padding: '0 24px' }}>
-            <div style={{ 
-                padding: '12px', 
+            <div style={{
+                padding: '12px',
                 backgroundColor: session ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                 borderRadius: '8px',
                 fontSize: '0.8rem',
@@ -108,16 +117,27 @@ function App() {
       <main className="main-content">
         <header className="header" style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h2>{activeTab === 'caja' ? 'CAJA' : activeTab.toUpperCase()}</h2>
+            <h2>
+              {activeTab === 'caja' ? 'CAJA' :
+               activeTab === 'configuracion' ? 'CONFIGURACIÓN' :
+               activeTab.toUpperCase()}
+            </h2>
           </div>
         </header>
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
-            {activeTab === 'venta' && <Ventas session={session} />}
-            {activeTab === 'inventario' && <Inventario />}
-            {activeTab === 'caja' && <Caja session={session} onSessionChange={setSession} />}
-            {activeTab === 'clientes' && <Clientes />}
-            {activeTab === 'reportes' && <Reportes />}
+            {activeTab === 'venta'         && <Ventas session={session} quickPayKey={shortcuts.pagarEfectivo} />}
+            {activeTab === 'inventario'    && <Inventario />}
+            {activeTab === 'caja'          && <Caja session={session} onSessionChange={setSession} />}
+            {activeTab === 'clientes'      && <Clientes />}
+            {activeTab === 'reportes'      && <Reportes />}
+            {activeTab === 'configuracion' && (
+                <Configuracion
+                    shortcuts={shortcuts}
+                    onShortcutChange={setShortcut}
+                    onReset={resetShortcuts}
+                />
+            )}
         </div>
       </main>
     </div>

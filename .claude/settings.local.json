@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd \"C:\\\\Users\\\\Usuario\\\\Desktop\\\\kiosco\\\\App-para-Kioscos\"; dir -Recurse -Depth 2 KioscoApp -Exclude bin,obj | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\Usuario\\\\Desktop\\\\kiosco\\\\App-para-Kioscos\\\\\", \"\"\\) })",
+      "PowerShell(cd \"C:\\\\Users\\\\Usuario\\\\Desktop\\\\kiosco\\\\App-para-Kioscos\\\\Kiosco-Electron\\\\src\"; dir -Recurse | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\Usuario\\\\Desktop\\\\kiosco\\\\App-para-Kioscos\\\\Kiosco-Electron\\\\src\\\\\", \"\"\\) })",
+      "PowerShell(cd \"C:\\\\Users\\\\Usuario\\\\Desktop\\\\kiosco\\\\App-para-Kioscos\\\\Kiosco-Electron\\\\src\\\\test\"; Get-ChildItem -Recurse | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"C:\\\\Users\\\\Usuario\\\\Desktop\\\\kiosco\\\\App-para-Kioscos\\\\Kiosco-Electron\\\\src\\\\test\\\\\", \"\"\\) })",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
