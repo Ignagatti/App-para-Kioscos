@@ -89,10 +89,6 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
             MySwal.fire('Atención', 'Ingresa un monto inicial válido.', 'warning');
             return;
         }
-        if (lastClosingAmount !== null && mi > lastClosingAmount) {
-            MySwal.fire('Atención', `El monto inicial ($${mi.toLocaleString()}) no puede superar el monto de cierre anterior ($${lastClosingAmount.toLocaleString()}).`, 'warning');
-            return;
-        }
         try {
             await window.api.db.openCaja(mi);
             const newSession = await window.api.db.getSessionStatus();
@@ -217,7 +213,6 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                                     type="number"
                                     step="1"
                                     min="0"
-                                    max={lastClosingAmount ?? undefined}
                                     required
                                     value={montoInicial}
                                     onChange={e => setMontoInicial(e.target.value)}

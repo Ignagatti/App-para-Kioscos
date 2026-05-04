@@ -238,7 +238,10 @@ export default function Inventario() {
                 <div className="stat-card">
                     <span className="label">Valor Inventario (Precio Venta)</span>
                     <span className="value" style={{ color: '#4ade80' }}>
-                        ${products.reduce((acc, p) => acc + ((p.precio || 0) * (p.stock || 0)), 0).toLocaleString()}
+                        ${products.reduce((acc, p) => {
+                            const precioEfectivo = p.es_por_kilo ? (p.precio_por_kilo || 0) : (p.precio || 0);
+                            return acc + (precioEfectivo * (p.stock || 0));
+                        }, 0).toLocaleString()}
                     </span>
                 </div>
             </div>
