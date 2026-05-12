@@ -95,9 +95,32 @@ function initDb() {
             fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (sesion_id) REFERENCES sesiones_caja(id)
         );
+        -- 8. Proveedores
+        CREATE TABLE IF NOT EXISTS proveedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            contacto TEXT,
+            telefono TEXT,
+            email TEXT,
+            direccion TEXT,
+            notas TEXT,
+            fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 9. Relación Producto-Proveedor (Muchos a Muchos)
+        CREATE TABLE IF NOT EXISTS producto_proveedor (
+            producto_id INTEGER NOT NULL,
+            proveedor_id INTEGER NOT NULL,
+            PRIMARY KEY (producto_id, proveedor_id),
+            FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE,
+            FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+        );
+
         -- Índices para velocidad
         CREATE INDEX IF NOT EXISTS idx_prod_codigo ON productos(codigo_barras);
         CREATE INDEX IF NOT EXISTS idx_ventas_sesion ON ventas(sesion_id);
+        CREATE INDEX IF NOT EXISTS idx_pp_prod ON producto_proveedor(producto_id);
+        CREATE INDEX IF NOT EXISTS idx_pp_prov ON producto_proveedor(proveedor_id);
 
         -- Datos iniciales
         INSERT OR IGNORE INTO categorias (nombre) VALUES 
@@ -276,5 +299,47 @@ exports.dbService = {
             exports.db.prepare("DELETE FROM sesiones_caja WHERE estado = 'CERRADA'").run();
         })();
         return { success: true };
+    },
+    // ── Proveedores ──
+    getSuppliers: () => exports.db.prepare('SELECT * FROM proveedores ORDER BY nombre').all(),
+    saveSupplier: (s) => {
+        if (s.id) {
+            exports.db.prepare('UPDATE proveedores SET nombre=?, contacto=?, telefono=?, email=?, direccion=?, notas=? WHERE id=?')
+                .run(s.nombre, s.contacto, s.telefono, s.email, s.direccion, s.notas, s.id);
+            return { id: s.id, updated: true };
+        }
+        else {
+            const res = exports.db.prepare('INSERT INTO proveedores (nombre, contacto, telefono, email, direccion, notas) VALUES (?,?,?,?,?,?)')
+                .run(s.nombre, s.contacto, s.telefono, s.email, s.direccion, s.notas);
+            return { id: Number(res.lastInsertRowid), updated: false };
+        }
+    },
+    deleteSupplier: (id) => exports.db.prepare('DELETE FROM proveedores WHERE id = ?').run(id),
+    getSuppliersByProduct: (productId) => {
+        return exports.db.prepare(`
+            SELECT prov.* FROM proveedores prov
+            JOIN producto_proveedor pp ON prov.id = pp.proveedor_id
+            WHERE pp.producto_id = ?
+        `).all(productId);
+    },
+    getProductsBySupplier: (supplierId) => {
+        return exports.db.prepare(`
+            SELECT p.*, COALESCE(c.nombre, 'Varios') as categoria 
+            FROM productos p
+            LEFT JOIN categorias c ON p.categoria_id = c.id
+            JOIN producto_proveedor pp ON p.id = pp.producto_id
+            WHERE pp.proveedor_id = ?
+            ORDER BY p.nombre
+        `).all(supplierId);
+    },
+    updateProductSuppliers: (productId, supplierIds) => {
+        const txn = exports.db.transaction(() => {
+            exports.db.prepare('DELETE FROM producto_proveedor WHERE producto_id = ?').run(productId);
+            const ins = exports.db.prepare('INSERT INTO producto_proveedor (producto_id, proveedor_id) VALUES (?, ?)');
+            for (const sid of supplierIds) {
+                ins.run(productId, sid);
+            }
+        });
+        return txn();
     },
 };

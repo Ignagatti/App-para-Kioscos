@@ -9,6 +9,7 @@ export interface Product {
     es_por_kilo: number;
     precio_por_kilo: number;
     categoria: string;
+    proveedores?: string;
 }
 
 export interface Category {
@@ -63,6 +64,17 @@ export interface Client {
     telefono: string;
 }
 
+export interface Supplier {
+    id: number;
+    nombre: string;
+    contacto?: string;
+    telefono?: string;
+    email?: string;
+    direccion?: string;
+    notas?: string;
+    fecha_creacion?: string;
+}
+
 export interface Movement {
     id: number;
     fecha: string;
@@ -108,6 +120,13 @@ export interface ElectronAPI {
         
         addMovimiento: (data: { tipo: string, categoria: string, monto: number, descripcion: string, sesionId: number, metodoPago: string }) => Promise<void>;
         getMovimientos: (sessionId: number) => Promise<Movement[]>;
+        
+        getSuppliers: () => Promise<Supplier[]>;
+        saveSupplier: (data: Partial<Supplier>) => Promise<{ id: number, updated: boolean }>;
+        deleteSupplier: (id: number) => Promise<void>;
+        getSuppliersByProduct: (productId: number) => Promise<Supplier[]>;
+        getProductsBySupplier: (supplierId: number) => Promise<Product[]>;
+        updateProductSuppliers: (data: { productId: number, supplierIds: number[] }) => Promise<void>;
     };
     barcode: {
         lookup: (barcode: string) => Promise<{ found: boolean, name?: string }>;

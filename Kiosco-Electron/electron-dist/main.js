@@ -121,3 +121,10 @@ electron_1.ipcMain.handle('db:deleteClient', (_, id) => db_1.dbService.deleteCli
 // ── Movimientos ──
 electron_1.ipcMain.handle('db:addMovimiento', (_, data) => db_1.dbService.addMovimiento(data.tipo, data.categoria, data.monto, data.descripcion, data.sesionId, data.metodoPago));
 electron_1.ipcMain.handle('db:getMovimientos', (_, sessionId) => db_1.dbService.getMovimientos(sessionId));
+// ── Proveedores ──
+electron_1.ipcMain.handle('db:getSuppliers', () => db_1.dbService.getSuppliers());
+electron_1.ipcMain.handle('db:saveSupplier', (_, data) => db_1.dbService.saveSupplier(data));
+electron_1.ipcMain.handle('db:deleteSupplier', (_, id) => db_1.dbService.deleteSupplier(id));
+electron_1.ipcMain.handle('db:getSuppliersByProduct', (_, productId) => db_1.dbService.getSuppliersByProduct(productId));
+electron_1.ipcMain.handle('db:getProductsBySupplier', (_, supplierId) => db_1.dbService.getProductsBySupplier(supplierId));
+electron_1.ipcMain.handle('db:updateProductSuppliers', (_, data) => db_1.dbService.updateProductSuppliers(data.productId, data.supplierIds));

@@ -30,6 +30,12 @@ electron_1.contextBridge.exposeInMainWorld('api', {
         getMovimientos: (sessionId) => electron_1.ipcRenderer.invoke('db:getMovimientos', sessionId),
         clearHistory: () => electron_1.ipcRenderer.invoke('db:clearHistory'),
         getTotalesSugeridos: (sessionId) => electron_1.ipcRenderer.invoke('db:getTotalesSugeridos', sessionId),
+        getSuppliers: () => electron_1.ipcRenderer.invoke('db:getSuppliers'),
+        saveSupplier: (data) => electron_1.ipcRenderer.invoke('db:saveSupplier', data),
+        deleteSupplier: (id) => electron_1.ipcRenderer.invoke('db:deleteSupplier', id),
+        getSuppliersByProduct: (productId) => electron_1.ipcRenderer.invoke('db:getSuppliersByProduct', productId),
+        getProductsBySupplier: (supplierId) => electron_1.ipcRenderer.invoke('db:getProductsBySupplier', supplierId),
+        updateProductSuppliers: (data) => electron_1.ipcRenderer.invoke('db:updateProductSuppliers', data),
     },
     barcode: {
         lookup: (barcode) => electron_1.ipcRenderer.invoke('api:lookupBarcode', barcode),

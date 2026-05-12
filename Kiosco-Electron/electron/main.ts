@@ -130,3 +130,11 @@ ipcMain.handle('db:deleteClient', (_, id) => dbService.deleteClient(id));
 // ── Movimientos ──
 ipcMain.handle('db:addMovimiento', (_, data) => dbService.addMovimiento(data.tipo, data.categoria, data.monto, data.descripcion, data.sesionId, data.metodoPago));
 ipcMain.handle('db:getMovimientos', (_, sessionId) => dbService.getMovimientos(sessionId));
+
+// ── Proveedores ──
+ipcMain.handle('db:getSuppliers', () => dbService.getSuppliers());
+ipcMain.handle('db:saveSupplier', (_, data) => dbService.saveSupplier(data));
+ipcMain.handle('db:deleteSupplier', (_, id) => dbService.deleteSupplier(id));
+ipcMain.handle('db:getSuppliersByProduct', (_, productId) => dbService.getSuppliersByProduct(productId));
+ipcMain.handle('db:getProductsBySupplier', (_, supplierId) => dbService.getProductsBySupplier(supplierId));
+ipcMain.handle('db:updateProductSuppliers', (_, data) => dbService.updateProductSuppliers(data.productId, data.supplierIds));

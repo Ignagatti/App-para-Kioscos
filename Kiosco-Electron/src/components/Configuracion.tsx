@@ -28,10 +28,11 @@ const formatKey = (key: string): string => {
 
 const SHORTCUT_DEFS: { key: keyof Shortcuts; label: string; description: string }[] = [
     { key: 'tabVentas',       label: 'Ir a Ventas',               description: 'Navegar a la pantalla de ventas' },
-    { key: 'tabInventario',   label: 'Ir a Inventario',           description: 'Navegar al inventario de productos' },
-    { key: 'tabReportes',     label: 'Ir a Reportes',             description: 'Navegar a los reportes' },
-    { key: 'tabClientes',     label: 'Ir a Clientes/Fiados',      description: 'Navegar a la lista de clientes' },
     { key: 'tabCaja',         label: 'Ir a Caja',                 description: 'Navegar a la caja registradora' },
+    { key: 'tabInventario',   label: 'Ir a Inventario',           description: 'Navegar al inventario de productos' },
+    { key: 'tabProveedores',  label: 'Ir a Proveedores',           description: 'Navegar a la lista de proveedores' },
+    { key: 'tabClientes',     label: 'Ir a Clientes/Fiados',      description: 'Navegar a la lista de clientes' },
+    { key: 'tabReportes',     label: 'Ir a Reportes',             description: 'Navegar a los reportes' },
     { key: 'pagarEfectivo',   label: 'Cobro rápido en Efectivo',  description: 'Cobra el carrito actual en efectivo sin abrir el modal' },
 ];
 
@@ -97,8 +98,8 @@ export default function Configuracion({ shortcuts, onShortcutChange, onReset }: 
         if (isConfirmed) onReset();
     };
 
-    const navDefs = SHORTCUT_DEFS.slice(0, 5);
-    const salesDefs = SHORTCUT_DEFS.slice(5);
+    const navDefs = SHORTCUT_DEFS.slice(0, 6);
+    const salesDefs = SHORTCUT_DEFS.slice(6);
 
     return (
         <div style={{ height: '100%', overflowY: 'auto' }}>

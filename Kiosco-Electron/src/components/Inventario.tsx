@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, AlertCircle, Edit, Trash2, PackageSearch } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import type { Product, Category } from '../types/electron';
+import type { Product, Category, Supplier } from '../types/electron';
 
 const MySwal = withReactContent(Swal);
 
@@ -11,10 +11,12 @@ export default function Inventario() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+    const [selectedSupplierIds, setSelectedSupplierIds] = useState<number[]>([]);
     const [isLookingUp, setIsLookingUp] = useState(false);
 
     // Controlled string inputs for numbers to prevent locking
@@ -36,12 +38,14 @@ export default function Inventario() {
 
     const loadData = async () => {
         try {
-            const [prodData, catData] = await Promise.all([
+            const [prodData, catData, supData] = await Promise.all([
                 window.api.db.getProducts(),
-                window.api.db.getCategories()
+                window.api.db.getCategories(),
+                window.api.db.getSuppliers()
             ]);
             setProducts(prodData);
             setCategories(catData);
+            setSuppliers(supData);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
@@ -94,7 +98,7 @@ export default function Inventario() {
         }
 
         try {
-            await window.api.db.saveProduct({
+            const res = await window.api.db.saveProduct({
                 id: editingProduct.id,
                 codigo_barras: editingProduct.codigo_barras,
                 nombre: editingProduct.nombre,
@@ -105,6 +109,14 @@ export default function Inventario() {
                 es_por_kilo: editingProduct.es_por_kilo ? 1 : 0,
                 precio_por_kilo: precioKilo
             });
+
+            // Save suppliers
+            const productId = editingProduct.id || res.id;
+            await window.api.db.updateProductSuppliers({
+                productId,
+                supplierIds: selectedSupplierIds
+            });
+
             setIsModalOpen(false);
             MySwal.fire({
                 icon: 'success',
@@ -193,13 +205,17 @@ export default function Inventario() {
         }
     };
 
-    const openModal = (product?: Product) => {
+    const openModal = async (product?: Product) => {
         if (product) {
             setEditingProduct(product);
             setInputPrecio(product.precio?.toString() || '');
             setInputCosto(product.precio_costo?.toString() || '');
             setInputStock(product.stock?.toString() || '');
             setInputPrecioKilo(product.precio_por_kilo?.toString() || '');
+            
+            // Load selected suppliers
+            const linked = await window.api.db.getSuppliersByProduct(product.id);
+            setSelectedSupplierIds(linked.map(s => s.id));
         } else {
             setEditingProduct({
                 codigo_barras: '',
@@ -211,6 +227,7 @@ export default function Inventario() {
             setInputCosto('');
             setInputStock('');
             setInputPrecioKilo('');
+            setSelectedSupplierIds([]);
         }
         setIsModalOpen(true);
     };
@@ -270,6 +287,7 @@ export default function Inventario() {
                             <th>Código</th>
                             <th>Producto</th>
                             <th>Categoría</th>
+                            <th>Proveedor</th>
                             <th>Costo</th>
                             <th>Precio</th>
                             <th>Stock</th>
@@ -286,6 +304,7 @@ export default function Inventario() {
                                 <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{product.codigo_barras}</td>
                                 <td style={{ fontWeight: 600 }}>{product.nombre} {product.es_por_kilo ? <span style={{fontSize: '0.75rem', color: '#f59e0b'}}>(Fiambre/Peso)</span> : ''}</td>
                                 <td>{product.categoria || '-'}</td>
+                                <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{product.proveedores || '-'}</td>
                                 <td style={{ color: 'var(--text-secondary)' }}>${(product.precio_costo || 0).toLocaleString()}</td>
                                 <td style={{ fontWeight: 700, color: '#60a5fa' }}>${(product.precio || 0).toLocaleString()}</td>
                                 <td>
@@ -418,6 +437,40 @@ export default function Inventario() {
                                             <Plus size={16} />
                                         </button>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: '5px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Proveedores (Seleccionar uno o varios)</label>
+                                <div style={{ 
+                                    maxHeight: '120px', 
+                                    overflowY: 'auto', 
+                                    padding: '10px', 
+                                    backgroundColor: 'var(--bg-main)', 
+                                    border: '1px solid var(--border)', 
+                                    borderRadius: '8px',
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: '8px'
+                                }}>
+                                    {suppliers.length === 0 ? (
+                                        <p style={{ gridColumn: 'span 2', fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>No hay proveedores registrados.</p>
+                                    ) : suppliers.map(s => (
+                                        <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedSupplierIds.includes(s.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedSupplierIds([...selectedSupplierIds, s.id]);
+                                                    } else {
+                                                        setSelectedSupplierIds(selectedSupplierIds.filter(id => id !== s.id));
+                                                    }
+                                                }}
+                                            />
+                                            {s.nombre}
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
 

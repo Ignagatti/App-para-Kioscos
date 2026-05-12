@@ -9,6 +9,7 @@ import {
   Moon,
   Sun,
   Settings,
+  Truck,
 } from 'lucide-react';
 import type { SessionStatus } from './types/electron';
 import { useShortcuts } from './hooks/useShortcuts';
@@ -20,6 +21,7 @@ import Reportes from './components/Reportes';
 import Clientes from './components/Clientes';
 import Caja from './components/Caja';
 import Configuracion from './components/Configuracion';
+import Proveedores from './components/Proveedores';
 
 function App() {
   const [activeTab, setActiveTab] = useState('venta');
@@ -37,10 +39,11 @@ function App() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === shortcuts.tabVentas)    setActiveTab('venta');
-      if (e.key === shortcuts.tabInventario) setActiveTab('inventario');
-      if (e.key === shortcuts.tabReportes)  setActiveTab('reportes');
-      if (e.key === shortcuts.tabClientes)  setActiveTab('clientes');
       if (e.key === shortcuts.tabCaja)      setActiveTab('caja');
+      if (e.key === shortcuts.tabInventario) setActiveTab('inventario');
+      if (e.key === shortcuts.tabProveedores) setActiveTab('proveedores');
+      if (e.key === shortcuts.tabClientes)  setActiveTab('clientes');
+      if (e.key === shortcuts.tabReportes)  setActiveTab('reportes');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -69,13 +72,17 @@ function App() {
             <ShoppingCart size={20} />
             <span>Ventas ({shortcuts.tabVentas})</span>
           </div>
+          <div className={`nav-item ${activeTab === 'caja' ? 'active' : ''}`} onClick={() => setActiveTab('caja')}>
+            <Wallet size={20} />
+            <span>Caja ({shortcuts.tabCaja})</span>
+          </div>
           <div className={`nav-item ${activeTab === 'inventario' ? 'active' : ''}`} onClick={() => setActiveTab('inventario')}>
             <Package size={20} />
             <span>Inventario ({shortcuts.tabInventario})</span>
           </div>
-          <div className={`nav-item ${activeTab === 'caja' ? 'active' : ''}`} onClick={() => setActiveTab('caja')}>
-            <Wallet size={20} />
-            <span>Caja ({shortcuts.tabCaja})</span>
+          <div className={`nav-item ${activeTab === 'proveedores' ? 'active' : ''}`} onClick={() => setActiveTab('proveedores')}>
+            <Truck size={20} />
+            <span>Proveedores ({shortcuts.tabProveedores})</span>
           </div>
           <div className={`nav-item ${activeTab === 'clientes' ? 'active' : ''}`} onClick={() => setActiveTab('clientes')}>
             <Users size={20} />
@@ -130,6 +137,7 @@ function App() {
             {activeTab === 'inventario'    && <Inventario />}
             {activeTab === 'caja'          && <Caja session={session} onSessionChange={setSession} />}
             {activeTab === 'clientes'      && <Clientes />}
+            {activeTab === 'proveedores'   && <Proveedores />}
             {activeTab === 'reportes'      && <Reportes />}
             {activeTab === 'configuracion' && (
                 <Configuracion
