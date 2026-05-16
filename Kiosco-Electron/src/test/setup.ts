@@ -35,6 +35,13 @@ const makeApiMock = () => ({
 
         addMovimiento: vi.fn().mockResolvedValue(undefined),
         getMovimientos: vi.fn().mockResolvedValue([]),
+
+        getSuppliers: vi.fn().mockResolvedValue([]),
+        saveSupplier: vi.fn().mockResolvedValue({ id: 1, updated: false }),
+        deleteSupplier: vi.fn().mockResolvedValue(undefined),
+        getSuppliersByProduct: vi.fn().mockResolvedValue([]),
+        getProductsBySupplier: vi.fn().mockResolvedValue([]),
+        updateProductSuppliers: vi.fn().mockResolvedValue(undefined),
     },
     barcode: {
         lookup: vi.fn().mockResolvedValue({ found: false }),
@@ -75,5 +82,11 @@ beforeEach(() => {
     api.db.deleteClient.mockResolvedValue(undefined);
     api.db.addMovimiento.mockResolvedValue(undefined);
     api.db.getMovimientos.mockResolvedValue([]);
+    api.db.getSuppliers.mockResolvedValue([]);
+    api.db.saveSupplier.mockResolvedValue({ id: 1, updated: false });
+    api.db.deleteSupplier.mockResolvedValue(undefined);
+    api.db.getSuppliersByProduct.mockResolvedValue([]);
+    api.db.getProductsBySupplier.mockResolvedValue([]);
+    api.db.updateProductSuppliers.mockResolvedValue(undefined);
     api.barcode.lookup.mockResolvedValue({ found: false });
 });

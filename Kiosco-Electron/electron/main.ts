@@ -33,10 +33,12 @@ function createWindow() {
 function fetchProductFromAPI(barcode: string): Promise<{ found: boolean; name?: string }> {
     return new Promise((resolve) => {
         const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+        const timer = setTimeout(() => resolve({ found: false }), 10_000);
         https.get(url, (res) => {
             let data = '';
             res.on('data', (chunk) => data += chunk);
             res.on('end', () => {
+                clearTimeout(timer);
                 try {
                     const json = JSON.parse(data);
                     if (json.status === 1 && json.product) {
@@ -50,6 +52,7 @@ function fetchProductFromAPI(barcode: string): Promise<{ found: boolean; name?: 
                 }
             });
         }).on('error', () => {
+            clearTimeout(timer);
             resolve({ found: false });
         });
     });

@@ -135,7 +135,8 @@ function initDb() {
     console.log("Base de Datos v2 Inicializada en:", dbPath);
 }
 const PRODUCT_SELECT = `
-    SELECT p.*, COALESCE(c.nombre, 'Varios') as categoria 
+    SELECT p.*, COALESCE(c.nombre, 'Varios') as categoria,
+    (SELECT GROUP_CONCAT(prov.nombre, ', ') FROM proveedores prov JOIN producto_proveedor pp ON prov.id = pp.proveedor_id WHERE pp.producto_id = p.id) as proveedores
     FROM productos p 
     LEFT JOIN categorias c ON p.categoria_id = c.id
 `;
@@ -324,9 +325,7 @@ exports.dbService = {
     },
     getProductsBySupplier: (supplierId) => {
         return exports.db.prepare(`
-            SELECT p.*, COALESCE(c.nombre, 'Varios') as categoria 
-            FROM productos p
-            LEFT JOIN categorias c ON p.categoria_id = c.id
+            ${PRODUCT_SELECT}
             JOIN producto_proveedor pp ON p.id = pp.producto_id
             WHERE pp.proveedor_id = ?
             ORDER BY p.nombre

@@ -136,7 +136,7 @@ function App() {
             {activeTab === 'venta'         && <Ventas session={session} quickPayKey={shortcuts.pagarEfectivo} />}
             {activeTab === 'inventario'    && <Inventario />}
             {activeTab === 'caja'          && <Caja session={session} onSessionChange={setSession} />}
-            {activeTab === 'clientes'      && <Clientes />}
+            {activeTab === 'clientes'      && <Clientes session={session} />}
             {activeTab === 'proveedores'   && <Proveedores />}
             {activeTab === 'reportes'      && <Reportes />}
             {activeTab === 'configuracion' && (

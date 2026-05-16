@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, DollarSign, List, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import type { Client, Sale } from '../types/electron';
+import type { Client, Sale, SessionStatus } from '../types/electron';
 
 const MySwal = withReactContent(Swal);
 
-export default function Clientes() {
+interface ClientesProps {
+    session: SessionStatus | null;
+}
+
+export default function Clientes({ session }: ClientesProps) {
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -92,6 +96,16 @@ export default function Clientes() {
         }
         try {
             await window.api.db.payClientDebt({ clientId: selectedClient.id, amount: Number(paymentAmount) });
+            if (session) {
+                await window.api.db.addMovimiento({
+                    tipo: 'ENTRADA',
+                    categoria: 'Cobro de Fiado',
+                    monto: Number(paymentAmount),
+                    descripcion: `Pago de deuda - ${selectedClient.nombre}`,
+                    sesionId: session.id,
+                    metodoPago: 'EFECTIVO'
+                });
+            }
             setIsPaymentModalOpen(false);
             setPaymentAmount('');
             setSelectedClient(null);

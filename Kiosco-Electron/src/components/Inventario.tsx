@@ -253,6 +253,14 @@ export default function Inventario() {
                     </span>
                 </div>
                 <div className="stat-card">
+                    <span className="label">Valor Inventario (Costo)</span>
+                    <span className="value" style={{ color: '#f59e0b' }}>
+                        ${products.reduce((acc, p) => {
+                            return acc + ((p.precio_costo || 0) * (p.stock || 0));
+                        }, 0).toLocaleString()}
+                    </span>
+                </div>
+                <div className="stat-card">
                     <span className="label">Valor Inventario (Precio Venta)</span>
                     <span className="value" style={{ color: '#4ade80' }}>
                         ${products.reduce((acc, p) => {
@@ -296,9 +304,9 @@ export default function Inventario() {
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px' }}>Cargando inventario...</td></tr>
+                            <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px' }}>Cargando inventario...</td></tr>
                         ) : filteredInventory.length === 0 ? (
-                            <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px' }}>No se encontraron productos.</td></tr>
+                            <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px' }}>No se encontraron productos.</td></tr>
                         ) : filteredInventory.map(product => (
                             <tr key={product.id}>
                                 <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{product.codigo_barras}</td>
@@ -306,7 +314,10 @@ export default function Inventario() {
                                 <td>{product.categoria || '-'}</td>
                                 <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{product.proveedores || '-'}</td>
                                 <td style={{ color: 'var(--text-secondary)' }}>${(product.precio_costo || 0).toLocaleString()}</td>
-                                <td style={{ fontWeight: 700, color: '#60a5fa' }}>${(product.precio || 0).toLocaleString()}</td>
+                                <td style={{ fontWeight: 700, color: '#60a5fa' }}>
+                                    ${(product.es_por_kilo ? (product.precio_por_kilo || 0) : (product.precio || 0)).toLocaleString()}
+                                    {product.es_por_kilo ? <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>/kg</span> : ''}
+                                </td>
                                 <td>
                                     <span className={`badge ${(product.stock || 0) < 5 ? 'badge-low' : 'badge-ok'}`}>
                                         {(product.stock || 0) < 5 && <AlertCircle size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />}

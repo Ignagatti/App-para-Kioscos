@@ -308,14 +308,15 @@ export default function Proveedores() {
                                         <th>Producto</th>
                                         <th>Categoría</th>
                                         <th style={{ textAlign: 'right' }}>Stock</th>
-                                        <th style={{ textAlign: 'right' }}>Precio</th>
+                                        <th style={{ textAlign: 'right' }}>Precio Costo</th>
+                                        <th style={{ textAlign: 'right' }}>Precio Venta</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {loadingProducts ? (
-                                        <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Buscando productos...</td></tr>
+                                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>Buscando productos...</td></tr>
                                     ) : supplierProducts.length === 0 ? (
-                                        <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Este proveedor aún no tiene productos vinculados.</td></tr>
+                                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>Este proveedor aún no tiene productos vinculados.</td></tr>
                                     ) : supplierProducts.map(product => (
                                         <tr key={product.id}>
                                             <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{product.codigo_barras}</td>
@@ -324,7 +325,8 @@ export default function Proveedores() {
                                             <td style={{ textAlign: 'right', fontWeight: 600, color: product.stock <= 5 ? '#f87171' : 'inherit' }}>
                                                 {product.stock} {product.es_por_kilo ? 'kg' : 'u'}
                                             </td>
-                                            <td style={{ textAlign: 'right', fontWeight: 700 }}>${product.precio.toLocaleString()}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700 }}>${(product.precio_costo || 0).toLocaleString()}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#60a5fa' }}>${product.precio.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>

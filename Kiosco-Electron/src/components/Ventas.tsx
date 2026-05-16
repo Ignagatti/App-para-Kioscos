@@ -88,7 +88,8 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
         setCart([]);
         setSelectedClient(null);
         setIsPaymentModalOpen(false);
-        
+        loadClients();
+
         MySwal.fire({
             icon: 'success',
             title: 'Venta completada',
@@ -154,6 +155,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                     // Pago mixto: abona algo ahora, el resto queda como deuda
                     await finalizeSale(total, metodoPago, null);
                     await window.api.db.addClientDebt({ clientId: selectedClient, amount: deuda });
+                    loadClients();
                     // Corrección de caja: restamos la parte que NO se cobró en efectivo
                     await window.api.db.addMovimiento({
                         tipo: 'SALIDA',
@@ -372,6 +374,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
 
             if (gramosStr) {
                 const gramos = parseFloat(gramosStr);
+                if (gramos <= 0) return;
                 const kilos = gramos / 1000;
                 // El precio base para este item será el precio por kilo
                 const precio = product.precio_por_kilo || product.precio || 0;
