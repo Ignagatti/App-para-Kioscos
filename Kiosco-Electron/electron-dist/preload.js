@@ -36,6 +36,13 @@ electron_1.contextBridge.exposeInMainWorld('api', {
         getSuppliersByProduct: (productId) => electron_1.ipcRenderer.invoke('db:getSuppliersByProduct', productId),
         getProductsBySupplier: (supplierId) => electron_1.ipcRenderer.invoke('db:getProductsBySupplier', supplierId),
         updateProductSuppliers: (data) => electron_1.ipcRenderer.invoke('db:updateProductSuppliers', data),
+        getStatsResumen: (period) => electron_1.ipcRenderer.invoke('db:getStatsResumen', period),
+        getTopProductos: (period) => electron_1.ipcRenderer.invoke('db:getTopProductos', period),
+        getMenosVendidos: (period) => electron_1.ipcRenderer.invoke('db:getMenosVendidos', period),
+        getStatsMetodoPago: (period) => electron_1.ipcRenderer.invoke('db:getStatsMetodoPago', period),
+        getStatsCategorias: (period) => electron_1.ipcRenderer.invoke('db:getStatsCategorias', period),
+        getStatsHoraPico: (period) => electron_1.ipcRenderer.invoke('db:getStatsHoraPico', period),
+        getProductosBajoStock: (umbral) => electron_1.ipcRenderer.invoke('db:getProductosBajoStock', umbral),
     },
     barcode: {
         lookup: (barcode) => electron_1.ipcRenderer.invoke('api:lookupBarcode', barcode),

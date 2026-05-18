@@ -132,6 +132,15 @@ export function initDb() {
     console.log("Base de Datos v2 Inicializada en:", dbPath);
 }
 
+function getPeriodStart(period: string): string {
+    const map: Record<string, string> = {
+        today: "date('now', '-3 hours')",
+        week:  "date('now', '-3 hours', '-6 days')",
+        month: "date('now', '-3 hours', 'start of month')",
+    };
+    return map[period] ?? "'2000-01-01'";
+}
+
 const PRODUCT_SELECT = `
     SELECT p.*, COALESCE(c.nombre, 'Varios') as categoria,
     (SELECT GROUP_CONCAT(prov.nombre, ', ') FROM proveedores prov JOIN producto_proveedor pp ON prov.id = pp.proveedor_id WHERE pp.producto_id = p.id) as proveedores
@@ -358,5 +367,114 @@ export const dbService = {
             }
         });
         return txn();
+    },
+
+    // ── Estadísticas ──
+    getStatsResumen: (period: string) => {
+        const from = getPeriodStart(period);
+        return db.prepare(`
+            SELECT
+                (SELECT COUNT(*) FROM ventas WHERE date(fecha) >= ${from}) as total_ventas,
+                (SELECT COALESCE(SUM(total), 0) FROM ventas WHERE date(fecha) >= ${from}) as ingresos,
+                (SELECT COALESCE(AVG(total), 0) FROM ventas WHERE date(fecha) >= ${from}) as ticket_promedio,
+                (SELECT COALESCE(SUM(vd.subtotal - vd.costo_unitario * vd.cantidad), 0)
+                 FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id
+                 WHERE date(v.fecha) >= ${from}) as ganancia
+        `).get();
+    },
+
+    getTopProductos: (period: string) => {
+        const from = getPeriodStart(period);
+        return db.prepare(`
+            SELECT
+                vd.nombre,
+                SUM(vd.cantidad) as cantidad_total,
+                SUM(vd.subtotal) as ingresos_total,
+                SUM(vd.subtotal - vd.costo_unitario * vd.cantidad) as ganancia_total
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            WHERE date(v.fecha) >= ${from}
+            GROUP BY vd.nombre
+            ORDER BY cantidad_total DESC
+            LIMIT 10
+        `).all();
+    },
+
+    getMenosVendidos: (period: string) => {
+        const from = getPeriodStart(period);
+        return db.prepare(`
+            SELECT
+                p.nombre,
+                COALESCE(s.cantidad_total, 0) as cantidad_total,
+                COALESCE(s.ingresos_total, 0) as ingresos_total,
+                COALESCE(s.ganancia_total, 0) as ganancia_total
+            FROM productos p
+            LEFT JOIN (
+                SELECT
+                    LOWER(vd.nombre) as nombre_lower,
+                    SUM(vd.cantidad) as cantidad_total,
+                    SUM(vd.subtotal) as ingresos_total,
+                    SUM(vd.subtotal - vd.costo_unitario * vd.cantidad) as ganancia_total
+                FROM venta_detalles vd
+                JOIN ventas v ON vd.venta_id = v.id
+                WHERE date(v.fecha) >= ${from}
+                GROUP BY LOWER(vd.nombre)
+            ) s ON LOWER(p.nombre) = s.nombre_lower
+            ORDER BY cantidad_total ASC, p.nombre ASC
+            LIMIT 10
+        `).all();
+    },
+
+    getStatsMetodoPago: (period: string) => {
+        const from = getPeriodStart(period);
+        return db.prepare(`
+            SELECT metodo_pago, COUNT(*) as cantidad, COALESCE(SUM(total), 0) as monto_total
+            FROM ventas WHERE date(fecha) >= ${from}
+            GROUP BY metodo_pago
+        `).all();
+    },
+
+    getStatsCategorias: (period: string) => {
+        const from = getPeriodStart(period);
+        return db.prepare(`
+            SELECT
+                COALESCE(c.nombre, 'Sin categoría') as categoria,
+                COALESCE(SUM(vd.subtotal), 0) as ingresos,
+                COALESCE(SUM(vd.cantidad), 0) as unidades,
+                COALESCE(SUM(vd.subtotal - vd.costo_unitario * vd.cantidad), 0) as ganancia
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            LEFT JOIN (SELECT LOWER(nombre) as nom, MIN(categoria_id) as cat_id FROM productos GROUP BY LOWER(nombre)) p
+                ON LOWER(vd.nombre) = p.nom
+            LEFT JOIN categorias c ON c.id = p.cat_id
+            WHERE date(v.fecha) >= ${from}
+            GROUP BY p.cat_id, COALESCE(c.nombre, 'Sin categoría')
+            ORDER BY ingresos DESC
+        `).all();
+    },
+
+    getStatsHoraPico: (period: string) => {
+        const from = getPeriodStart(period);
+        return db.prepare(`
+            SELECT
+                CAST(strftime('%H', fecha) AS INTEGER) as hora,
+                COUNT(*) as cantidad_ventas,
+                COALESCE(SUM(total), 0) as monto_total
+            FROM ventas
+            WHERE date(fecha) >= ${from}
+            GROUP BY hora
+            ORDER BY hora
+        `).all();
+    },
+
+    getProductosBajoStock: (umbral = 5) => {
+        return db.prepare(`
+            SELECT p.nombre, p.stock, p.precio, COALESCE(c.nombre, 'Varios') as categoria
+            FROM productos p
+            LEFT JOIN categorias c ON c.id = p.categoria_id
+            WHERE p.stock <= ? AND p.stock >= 0
+            ORDER BY p.stock ASC
+            LIMIT 20
+        `).all(umbral);
     },
 };

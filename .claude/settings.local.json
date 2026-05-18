@@ -7,7 +7,11 @@
       "Bash(npm run *)",
       "Bash(npx tsc *)",
       "Bash(npx vitest *)",
-      "Bash(Select-String -Pattern \"FAIL|fail|Tests|failed|passed\")"
+      "Bash(Select-String -Pattern \"FAIL|fail|Tests|failed|passed\")",
+      "Bash(Get-ChildItem -Path . -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Select-String -Pattern \"getStatsResumen|getMenosVendidos|getTopProductos\" \"C:\\\\Users\\\\Usuario\\\\Desktop\\\\kiosco\\\\App-para-Kioscos\\\\Kiosco-Electron\\\\electron-dist\\\\db.js\")",
+      "Bash(Select-Object LineNumber, Line)"
     ]
   }
 }

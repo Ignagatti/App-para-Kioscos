@@ -86,6 +86,46 @@ export interface Movement {
     sesion_id: number;
 }
 
+export interface StatsResumen {
+    total_ventas: number;
+    ingresos: number;
+    ganancia: number;
+    ticket_promedio: number;
+}
+
+export interface TopProducto {
+    nombre: string;
+    cantidad_total: number;
+    ingresos_total: number;
+    ganancia_total: number;
+}
+
+export interface StatsMetodoPago {
+    metodo_pago: string;
+    cantidad: number;
+    monto_total: number;
+}
+
+export interface StatsCategoria {
+    categoria: string;
+    ingresos: number;
+    unidades: number;
+    ganancia: number;
+}
+
+export interface StatsHoraPico {
+    hora: number;
+    cantidad_ventas: number;
+    monto_total: number;
+}
+
+export interface ProductoBajoStock {
+    nombre: string;
+    stock: number;
+    precio: number;
+    categoria: string;
+}
+
 export interface ElectronAPI {
     db: {
         getProducts: () => Promise<Product[]>;
@@ -127,6 +167,14 @@ export interface ElectronAPI {
         getSuppliersByProduct: (productId: number) => Promise<Supplier[]>;
         getProductsBySupplier: (supplierId: number) => Promise<Product[]>;
         updateProductSuppliers: (data: { productId: number, supplierIds: number[] }) => Promise<void>;
+
+        getStatsResumen: (period: string) => Promise<StatsResumen>;
+        getTopProductos: (period: string) => Promise<TopProducto[]>;
+        getMenosVendidos: (period: string) => Promise<TopProducto[]>;
+        getStatsMetodoPago: (period: string) => Promise<StatsMetodoPago[]>;
+        getStatsCategorias: (period: string) => Promise<StatsCategoria[]>;
+        getStatsHoraPico: (period: string) => Promise<StatsHoraPico[]>;
+        getProductosBajoStock: (umbral?: number) => Promise<ProductoBajoStock[]>;
     };
     barcode: {
         lookup: (barcode: string) => Promise<{ found: boolean, name?: string }>;

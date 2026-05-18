@@ -34,7 +34,7 @@ function createWindow() {
 function fetchProductFromAPI(barcode) {
     return new Promise((resolve) => {
         const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
-        const timer = setTimeout(() => resolve({ found: false }), 10000);
+        const timer = setTimeout(() => resolve({ found: false }), 10_000);
         https_1.default.get(url, (res) => {
             let data = '';
             res.on('data', (chunk) => data += chunk);
@@ -131,3 +131,11 @@ electron_1.ipcMain.handle('db:deleteSupplier', (_, id) => db_1.dbService.deleteS
 electron_1.ipcMain.handle('db:getSuppliersByProduct', (_, productId) => db_1.dbService.getSuppliersByProduct(productId));
 electron_1.ipcMain.handle('db:getProductsBySupplier', (_, supplierId) => db_1.dbService.getProductsBySupplier(supplierId));
 electron_1.ipcMain.handle('db:updateProductSuppliers', (_, data) => db_1.dbService.updateProductSuppliers(data.productId, data.supplierIds));
+// ── Estadísticas ──
+electron_1.ipcMain.handle('db:getStatsResumen', (_, period) => db_1.dbService.getStatsResumen(period));
+electron_1.ipcMain.handle('db:getTopProductos', (_, period) => db_1.dbService.getTopProductos(period));
+electron_1.ipcMain.handle('db:getMenosVendidos', (_, period) => db_1.dbService.getMenosVendidos(period));
+electron_1.ipcMain.handle('db:getStatsMetodoPago', (_, period) => db_1.dbService.getStatsMetodoPago(period));
+electron_1.ipcMain.handle('db:getStatsCategorias', (_, period) => db_1.dbService.getStatsCategorias(period));
+electron_1.ipcMain.handle('db:getStatsHoraPico', (_, period) => db_1.dbService.getStatsHoraPico(period));
+electron_1.ipcMain.handle('db:getProductosBajoStock', (_, umbral) => db_1.dbService.getProductosBajoStock(umbral));

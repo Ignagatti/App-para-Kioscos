@@ -32,8 +32,9 @@ const SHORTCUT_DEFS: { key: keyof Shortcuts; label: string; description: string 
     { key: 'tabInventario',   label: 'Ir a Inventario',           description: 'Navegar al inventario de productos' },
     { key: 'tabProveedores',  label: 'Ir a Proveedores',           description: 'Navegar a la lista de proveedores' },
     { key: 'tabClientes',     label: 'Ir a Clientes/Fiados',      description: 'Navegar a la lista de clientes' },
-    { key: 'tabReportes',     label: 'Ir a Reportes',             description: 'Navegar a los reportes' },
-    { key: 'pagarEfectivo',   label: 'Cobro rápido en Efectivo',  description: 'Cobra el carrito actual en efectivo sin abrir el modal' },
+    { key: 'tabReportes',       label: 'Ir a Reportes',             description: 'Navegar a los reportes' },
+    { key: 'tabEstadisticas',   label: 'Ir a Estadísticas',         description: 'Navegar al panel de estadísticas' },
+    { key: 'pagarEfectivo',     label: 'Cobro rápido en Efectivo',  description: 'Cobra el carrito actual en efectivo sin abrir el modal' },
 ];
 
 export default function Configuracion({ shortcuts, onShortcutChange, onReset }: ConfiguracionProps) {
@@ -98,8 +99,8 @@ export default function Configuracion({ shortcuts, onShortcutChange, onReset }: 
         if (isConfirmed) onReset();
     };
 
-    const navDefs = SHORTCUT_DEFS.slice(0, 6);
-    const salesDefs = SHORTCUT_DEFS.slice(6);
+    const navDefs = SHORTCUT_DEFS.slice(0, 7);
+    const salesDefs = SHORTCUT_DEFS.slice(7);
 
     return (
         <div style={{ height: '100%', overflowY: 'auto' }}>

@@ -7,6 +7,7 @@ export interface Shortcuts {
     tabClientes: string;
     tabCaja: string;
     tabProveedores: string;
+    tabEstadisticas: string;
     pagarEfectivo: string;
 }
 
@@ -17,6 +18,7 @@ export const DEFAULT_SHORTCUTS: Shortcuts = {
     tabProveedores: 'F4',
     tabClientes: 'F5',
     tabReportes: 'F6',
+    tabEstadisticas: 'F7',
     pagarEfectivo: 'F12',
 };
 

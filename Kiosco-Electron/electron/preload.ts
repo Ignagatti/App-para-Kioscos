@@ -35,6 +35,13 @@ contextBridge.exposeInMainWorld('api', {
         getSuppliersByProduct: (productId: number) => ipcRenderer.invoke('db:getSuppliersByProduct', productId),
         getProductsBySupplier: (supplierId: number) => ipcRenderer.invoke('db:getProductsBySupplier', supplierId),
         updateProductSuppliers: (data: { productId: number, supplierIds: number[] }) => ipcRenderer.invoke('db:updateProductSuppliers', data),
+        getStatsResumen: (period: string) => ipcRenderer.invoke('db:getStatsResumen', period),
+        getTopProductos: (period: string) => ipcRenderer.invoke('db:getTopProductos', period),
+        getMenosVendidos: (period: string) => ipcRenderer.invoke('db:getMenosVendidos', period),
+        getStatsMetodoPago: (period: string) => ipcRenderer.invoke('db:getStatsMetodoPago', period),
+        getStatsCategorias: (period: string) => ipcRenderer.invoke('db:getStatsCategorias', period),
+        getStatsHoraPico: (period: string) => ipcRenderer.invoke('db:getStatsHoraPico', period),
+        getProductosBajoStock: (umbral?: number) => ipcRenderer.invoke('db:getProductosBajoStock', umbral),
     },
     barcode: {
         lookup: (barcode: string) => ipcRenderer.invoke('api:lookupBarcode', barcode),

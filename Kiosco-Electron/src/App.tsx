@@ -10,6 +10,7 @@ import {
   Sun,
   Settings,
   Truck,
+  TrendingUp,
 } from 'lucide-react';
 import type { SessionStatus } from './types/electron';
 import { useShortcuts } from './hooks/useShortcuts';
@@ -22,6 +23,7 @@ import Clientes from './components/Clientes';
 import Caja from './components/Caja';
 import Configuracion from './components/Configuracion';
 import Proveedores from './components/Proveedores';
+import Estadisticas from './components/Estadisticas';
 
 function App() {
   const [activeTab, setActiveTab] = useState('venta');
@@ -44,6 +46,7 @@ function App() {
       if (e.key === shortcuts.tabProveedores) setActiveTab('proveedores');
       if (e.key === shortcuts.tabClientes)  setActiveTab('clientes');
       if (e.key === shortcuts.tabReportes)  setActiveTab('reportes');
+      if (e.key === shortcuts.tabEstadisticas) setActiveTab('estadisticas');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -92,6 +95,10 @@ function App() {
             <BarChart3 size={20} />
             <span>Reportes ({shortcuts.tabReportes})</span>
           </div>
+          <div className={`nav-item ${activeTab === 'estadisticas' ? 'active' : ''}`} onClick={() => setActiveTab('estadisticas')}>
+            <TrendingUp size={20} />
+            <span>Estadísticas ({shortcuts.tabEstadisticas})</span>
+          </div>
           <div className={`nav-item ${activeTab === 'configuracion' ? 'active' : ''}`} onClick={() => setActiveTab('configuracion')}>
             <Settings size={20} />
             <span>Configuración</span>
@@ -127,6 +134,7 @@ function App() {
             <h2>
               {activeTab === 'caja' ? 'CAJA' :
                activeTab === 'configuracion' ? 'CONFIGURACIÓN' :
+               activeTab === 'estadisticas' ? 'ESTADÍSTICAS' :
                activeTab.toUpperCase()}
             </h2>
           </div>
@@ -139,6 +147,7 @@ function App() {
             {activeTab === 'clientes'      && <Clientes session={session} />}
             {activeTab === 'proveedores'   && <Proveedores />}
             {activeTab === 'reportes'      && <Reportes />}
+            {activeTab === 'estadisticas'  && <Estadisticas />}
             {activeTab === 'configuracion' && (
                 <Configuracion
                     shortcuts={shortcuts}

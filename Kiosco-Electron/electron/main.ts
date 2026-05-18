@@ -141,3 +141,12 @@ ipcMain.handle('db:deleteSupplier', (_, id) => dbService.deleteSupplier(id));
 ipcMain.handle('db:getSuppliersByProduct', (_, productId) => dbService.getSuppliersByProduct(productId));
 ipcMain.handle('db:getProductsBySupplier', (_, supplierId) => dbService.getProductsBySupplier(supplierId));
 ipcMain.handle('db:updateProductSuppliers', (_, data) => dbService.updateProductSuppliers(data.productId, data.supplierIds));
+
+// ── Estadísticas ──
+ipcMain.handle('db:getStatsResumen', (_, period) => dbService.getStatsResumen(period));
+ipcMain.handle('db:getTopProductos', (_, period) => dbService.getTopProductos(period));
+ipcMain.handle('db:getMenosVendidos', (_, period) => dbService.getMenosVendidos(period));
+ipcMain.handle('db:getStatsMetodoPago', (_, period) => dbService.getStatsMetodoPago(period));
+ipcMain.handle('db:getStatsCategorias', (_, period) => dbService.getStatsCategorias(period));
+ipcMain.handle('db:getStatsHoraPico', (_, period) => dbService.getStatsHoraPico(period));
+ipcMain.handle('db:getProductosBajoStock', (_, umbral) => dbService.getProductosBajoStock(umbral));
