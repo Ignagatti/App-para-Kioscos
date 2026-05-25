@@ -98,6 +98,7 @@ export interface TopProducto {
     cantidad_total: number;
     ingresos_total: number;
     ganancia_total: number;
+    es_por_kilo: number;
 }
 
 export interface StatsMetodoPago {
@@ -124,6 +125,7 @@ export interface ProductoBajoStock {
     stock: number;
     precio: number;
     categoria: string;
+    es_por_kilo: number;
 }
 
 export interface ElectronAPI {

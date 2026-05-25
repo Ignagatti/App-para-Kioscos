@@ -255,18 +255,18 @@ export default function Inventario() {
                 <div className="stat-card">
                     <span className="label">Valor Inventario (Costo)</span>
                     <span className="value" style={{ color: '#f59e0b' }}>
-                        ${products.reduce((acc, p) => {
+                        ${Math.round(products.reduce((acc, p) => {
                             return acc + ((p.precio_costo || 0) * (p.stock || 0));
-                        }, 0).toLocaleString()}
+                        }, 0)).toLocaleString()}
                     </span>
                 </div>
                 <div className="stat-card">
                     <span className="label">Valor Inventario (Precio Venta)</span>
                     <span className="value" style={{ color: '#4ade80' }}>
-                        ${products.reduce((acc, p) => {
+                        ${Math.round(products.reduce((acc, p) => {
                             const precioEfectivo = p.es_por_kilo ? (p.precio_por_kilo || 0) : (p.precio || 0);
                             return acc + (precioEfectivo * (p.stock || 0));
-                        }, 0).toLocaleString()}
+                        }, 0)).toLocaleString()}
                     </span>
                 </div>
             </div>
@@ -321,7 +321,7 @@ export default function Inventario() {
                                 <td>
                                     <span className={`badge ${(product.stock || 0) < 5 ? 'badge-low' : 'badge-ok'}`}>
                                         {(product.stock || 0) < 5 && <AlertCircle size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />}
-                                        {product.stock || 0} {product.es_por_kilo ? 'kg' : ''}
+                                        {product.es_por_kilo ? parseFloat((product.stock || 0).toFixed(3)) : (product.stock || 0)} {product.es_por_kilo ? 'kg' : ''}
                                     </span>
                                 </td>
                                 <td style={{ textAlign: 'center' }}>

@@ -13,7 +13,6 @@ interface CajaProps {
 
 export default function Caja({ session, onSessionChange }: CajaProps) {
     const [montoInicial, setMontoInicial] = useState('');
-    const [lastClosingAmount, setLastClosingAmount] = useState<number | null>(null);
 
     // Close Session State
     const [montoEfectivo, setMontoEfectivo] = useState('');
@@ -34,10 +33,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
         if (!session) {
             window.api.db.getLastClosingAmount().then(amount => {
                 if (amount !== null && amount !== undefined) {
-                    setLastClosingAmount(amount);
                     setMontoInicial(String(amount));
-                } else {
-                    setLastClosingAmount(null);
                 }
             }).catch(() => {});
         }

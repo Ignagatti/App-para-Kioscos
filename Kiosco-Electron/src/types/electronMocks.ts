@@ -61,6 +61,13 @@ export const mockElectronAPI: ElectronAPI = {
         getStatsCategorias: async () => [],
         getStatsHoraPico: async () => [],
         getProductosBajoStock: async () => [],
+
+        getSuppliers: async () => [],
+        saveSupplier: async () => ({ id: 1, updated: false }),
+        deleteSupplier: async () => {},
+        getSuppliersByProduct: async () => [],
+        getProductsBySupplier: async () => [],
+        updateProductSuppliers: async () => {},
     },
     barcode: {
         lookup: async () => ({

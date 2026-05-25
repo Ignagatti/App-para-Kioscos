@@ -390,7 +390,8 @@ export const dbService = {
                 vd.nombre,
                 SUM(vd.cantidad) as cantidad_total,
                 SUM(vd.subtotal) as ingresos_total,
-                SUM(vd.subtotal - vd.costo_unitario * vd.cantidad) as ganancia_total
+                SUM(vd.subtotal - vd.costo_unitario * vd.cantidad) as ganancia_total,
+                COALESCE((SELECT es_por_kilo FROM productos WHERE nombre = vd.nombre LIMIT 1), 0) as es_por_kilo
             FROM venta_detalles vd
             JOIN ventas v ON vd.venta_id = v.id
             WHERE date(v.fecha) >= ${from}
@@ -405,6 +406,7 @@ export const dbService = {
         return db.prepare(`
             SELECT
                 p.nombre,
+                p.es_por_kilo,
                 COALESCE(s.cantidad_total, 0) as cantidad_total,
                 COALESCE(s.ingresos_total, 0) as ingresos_total,
                 COALESCE(s.ganancia_total, 0) as ganancia_total
@@ -469,7 +471,7 @@ export const dbService = {
 
     getProductosBajoStock: (umbral = 5) => {
         return db.prepare(`
-            SELECT p.nombre, p.stock, p.precio, COALESCE(c.nombre, 'Varios') as categoria
+            SELECT p.nombre, p.stock, p.precio, p.es_por_kilo, COALESCE(c.nombre, 'Varios') as categoria
             FROM productos p
             LEFT JOIN categorias c ON c.id = p.categoria_id
             WHERE p.stock <= ? AND p.stock >= 0

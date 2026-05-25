@@ -323,7 +323,7 @@ export default function Proveedores() {
                                             <td style={{ fontWeight: 600 }}>{product.nombre}</td>
                                             <td><span className="badge">{product.categoria}</span></td>
                                             <td style={{ textAlign: 'right', fontWeight: 600, color: product.stock <= 5 ? '#f87171' : 'inherit' }}>
-                                                {product.stock} {product.es_por_kilo ? 'kg' : 'u'}
+                                                {product.es_por_kilo ? parseFloat((product.stock || 0).toFixed(3)) : (product.stock || 0)} {product.es_por_kilo ? 'kg' : 'u'}
                                             </td>
                                             <td style={{ textAlign: 'right', fontWeight: 700 }}>${(product.precio_costo || 0).toLocaleString()}</td>
                                             <td style={{ textAlign: 'right', fontWeight: 700, color: '#60a5fa' }}>${product.precio.toLocaleString()}</td>

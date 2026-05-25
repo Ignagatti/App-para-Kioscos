@@ -156,7 +156,7 @@ export default function Estadisticas() {
                                         {p.nombre}
                                     </span>
                                     <span style={{ fontWeight: 600, flexShrink: 0 }}>
-                                        {fmtCant(p.cantidad_total)} uds
+                                        {fmtCant(p.cantidad_total)} {p.es_por_kilo ? 'kg' : 'uds'}
                                     </span>
                                 </div>
                                 <div style={{ height: '5px', borderRadius: '3px', backgroundColor: 'var(--border)', overflow: 'hidden' }}>
@@ -222,7 +222,7 @@ export default function Estadisticas() {
                                     {p.nombre}
                                 </span>
                                 <span style={{ color: '#f87171', fontWeight: 600, flexShrink: 0 }}>
-                                    {fmtCant(p.cantidad_total)} uds
+                                    {fmtCant(p.cantidad_total)} {p.es_por_kilo ? 'kg' : 'uds'}
                                 </span>
                             </div>
                         ))
@@ -318,7 +318,7 @@ export default function Estadisticas() {
                             }}>
                                 <span style={{ fontWeight: 600 }}>{p.nombre}</span>
                                 <span style={{ color: p.stock === 0 ? '#f87171' : '#fbbf24', marginLeft: '8px', fontWeight: 700 }}>
-                                    {p.stock === 0 ? 'SIN STOCK' : `${fmtCant(p.stock)} ud${p.stock !== 1 ? 's' : ''}`}
+                                    {p.stock === 0 ? 'SIN STOCK' : `${fmtCant(p.stock)} ${p.es_por_kilo ? 'kg' : (p.stock !== 1 ? 'uds' : 'ud')}`}
                                 </span>
                             </div>
                         ))}
