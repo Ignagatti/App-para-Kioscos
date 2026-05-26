@@ -14,7 +14,7 @@ function createWindow() {
         minWidth: 900,
         minHeight: 600,
         title: "Kiosco Pro",
-        icon: path_1.default.join(__dirname, '../public/favicon.svg'),
+        icon: path_1.default.join(__dirname, '../public/icon.png'),
         webPreferences: {
             preload: path_1.default.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -34,7 +34,7 @@ function createWindow() {
 function fetchProductFromAPI(barcode) {
     return new Promise((resolve) => {
         const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
-        const timer = setTimeout(() => resolve({ found: false }), 10_000);
+        const timer = setTimeout(() => resolve({ found: false }), 3_000);
         https_1.default.get(url, (res) => {
             let data = '';
             res.on('data', (chunk) => data += chunk);
