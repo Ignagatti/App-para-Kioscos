@@ -36,6 +36,10 @@ function initDb() {
             categoria_id INTEGER,
             es_por_kilo INTEGER DEFAULT 0,
             precio_por_kilo REAL DEFAULT 0,
+            marca TEXT,
+            imagen_url TEXT,
+            descripcion TEXT,
+            fuente_datos TEXT,
             fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (categoria_id) REFERENCES categorias(id)
         );
@@ -104,9 +108,25 @@ function initDb() {
         ('Golosinas'), ('Bebidas'), ('Fiambres'), ('Almacén'), 
         ('Lácteos'), ('Limpieza'), ('Cigarrillos'), ('Varios');
     `);
-    // Migración rápida para metodo_pago
+    // Migraciones automáticas para tablas existentes
     try {
         exports.db.exec("ALTER TABLE movimientos_caja ADD COLUMN metodo_pago TEXT DEFAULT 'EFECTIVO'");
+    }
+    catch (e) { /* Ya existe */ }
+    try {
+        exports.db.exec("ALTER TABLE productos ADD COLUMN marca TEXT");
+    }
+    catch (e) { /* Ya existe */ }
+    try {
+        exports.db.exec("ALTER TABLE productos ADD COLUMN imagen_url TEXT");
+    }
+    catch (e) { /* Ya existe */ }
+    try {
+        exports.db.exec("ALTER TABLE productos ADD COLUMN descripcion TEXT");
+    }
+    catch (e) { /* Ya existe */ }
+    try {
+        exports.db.exec("ALTER TABLE productos ADD COLUMN fuente_datos TEXT");
     }
     catch (e) { /* Ya existe */ }
     console.log("Base de Datos v2 Inicializada en:", dbPath);
@@ -124,17 +144,22 @@ exports.dbService = {
         const exact = exports.db.prepare(`${PRODUCT_SELECT} WHERE p.codigo_barras = ?`).get(query);
         if (exact)
             return [exact];
-        return exports.db.prepare(`${PRODUCT_SELECT} WHERE p.nombre LIKE ? ORDER BY p.nombre LIMIT 20`).all(`%${query}%`);
+        return exports.db.prepare(`${PRODUCT_SELECT} WHERE p.nombre LIKE ? OR p.marca LIKE ? ORDER BY p.nombre LIMIT 20`).all(`%${query}%`, `%${query}%`);
     },
     saveProduct: (p) => {
         if (p.id) {
-            exports.db.prepare('UPDATE productos SET codigo_barras=?, nombre=?, precio=?, precio_costo=?, stock=?, categoria_id=?, es_por_kilo=?, precio_por_kilo=? WHERE id=?')
-                .run(p.codigo_barras, p.nombre, p.precio, p.precio_costo, p.stock, p.categoria_id, p.es_por_kilo, p.precio_por_kilo, p.id);
+            exports.db.prepare(`
+                UPDATE productos 
+                SET codigo_barras=?, nombre=?, precio=?, precio_costo=?, stock=?, categoria_id=?, es_por_kilo=?, precio_por_kilo=?, marca=?, imagen_url=?, descripcion=?, fuente_datos=? 
+                WHERE id=?
+            `).run(p.codigo_barras, p.nombre, p.precio, p.precio_costo, p.stock, p.categoria_id, p.es_por_kilo, p.precio_por_kilo, p.marca || null, p.imagen_url || null, p.descripcion || null, p.fuente_datos || null, p.id);
             return { id: p.id, updated: true };
         }
         else {
-            const res = exports.db.prepare('INSERT INTO productos (codigo_barras, nombre, precio, precio_costo, stock, categoria_id, es_por_kilo, precio_por_kilo) VALUES (?,?,?,?,?,?,?,?)')
-                .run(p.codigo_barras, p.nombre, p.precio, p.precio_costo, p.stock, p.categoria_id, p.es_por_kilo, p.precio_por_kilo);
+            const res = exports.db.prepare(`
+                INSERT INTO productos (codigo_barras, nombre, precio, precio_costo, stock, categoria_id, es_por_kilo, precio_por_kilo, marca, imagen_url, descripcion, fuente_datos) 
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            `).run(p.codigo_barras, p.nombre, p.precio, p.precio_costo, p.stock, p.categoria_id, p.es_por_kilo, p.precio_por_kilo, p.marca || null, p.imagen_url || null, p.descripcion || null, p.fuente_datos || null);
             return { id: Number(res.lastInsertRowid), updated: false };
         }
     },
@@ -151,8 +176,13 @@ exports.dbService = {
         return row?.id ?? 0;
     },
     // ── Caja ──
-    getSessionStatus: () => exports.db.prepare("SELECT * FROM sesiones_caja WHERE estado = 'ABIERTA' LIMIT 1").get(),
-    openCaja: (monto) => ({ id: Number(exports.db.prepare("INSERT INTO sesiones_caja (monto_inicial, fecha_apertura) VALUES (?,datetime('now','-3 hours'))").run(monto).lastInsertRowid) }),
+    getSessionStatus: () => exports.db.prepare("SELECT * FROM sesiones_caja WHERE estado = 'ABIERTA' ORDER BY id DESC LIMIT 1").get(),
+    openCaja: (monto) => {
+        // Cerrar cualquier sesión previa que haya quedado abierta por accidente
+        exports.db.prepare("UPDATE sesiones_caja SET estado = 'CERRADA' WHERE estado = 'ABIERTA'").run();
+        const res = exports.db.prepare("INSERT INTO sesiones_caja (monto_inicial, estado, fecha_apertura) VALUES (?, 'ABIERTA', datetime('now','-3 hours'))").run(monto);
+        return { id: Number(res.lastInsertRowid) };
+    },
     closeCaja: (id, ef, ot) => {
         exports.db.prepare("UPDATE sesiones_caja SET monto_final_efectivo=?, monto_final_otros=?, fecha_cierre=datetime('now','-3 hours'), estado='CERRADA' WHERE id=?").run(ef, ot, id);
         return { success: true };
@@ -233,8 +263,19 @@ exports.dbService = {
     // ── Clientes ──
     getClients: () => exports.db.prepare('SELECT * FROM clientes ORDER BY nombre').all(),
     addClient: (n, t, s) => ({ id: Number(exports.db.prepare('INSERT INTO clientes (nombre, telefono, saldo) VALUES (?,?,?)').run(n, t, s).lastInsertRowid) }),
-    payClientDebt: (id, a) => exports.db.prepare('UPDATE clientes SET saldo = saldo - ? WHERE id = ?').run(a, id),
     addClientDebt: (id, amount) => exports.db.prepare('UPDATE clientes SET saldo = saldo + ? WHERE id = ?').run(amount, id),
+    payClientDebt: (id, a, metodoPago = 'EFECTIVO') => {
+        const txn = exports.db.transaction(() => {
+            exports.db.prepare('UPDATE clientes SET saldo = MAX(0, saldo - ?) WHERE id = ?').run(a, id);
+            const client = exports.db.prepare('SELECT nombre FROM clientes WHERE id = ?').get(id);
+            const openSession = exports.db.prepare("SELECT id FROM sesiones_caja WHERE estado = 'ABIERTA' ORDER BY id DESC LIMIT 1").get();
+            if (openSession) {
+                exports.db.prepare("INSERT INTO movimientos_caja (tipo, categoria, monto, descripcion, sesion_id, metodo_pago, fecha) VALUES (?,?,?,?,?,?,datetime('now','-3 hours'))")
+                    .run('ENTRADA', 'Cobro Fiado', a, `Pago de deuda: ${client?.nombre || 'Cliente'}`, openSession.id, (metodoPago || 'EFECTIVO').toUpperCase());
+            }
+        });
+        return txn();
+    },
     getClientSales: (id) => exports.db.prepare("SELECT * FROM ventas WHERE cliente_id = ? AND UPPER(metodo_pago) = 'FIADO' ORDER BY fecha DESC").all(id),
     deleteClient: (id) => {
         const txn = exports.db.transaction(() => {

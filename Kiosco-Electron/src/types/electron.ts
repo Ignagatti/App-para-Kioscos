@@ -9,6 +9,21 @@ export interface Product {
     es_por_kilo: number;
     precio_por_kilo: number;
     categoria: string;
+    marca?: string | null;
+    imagen_url?: string | null;
+    descripcion?: string | null;
+    fuente_datos?: string | null;
+}
+
+export interface ProductApiResult {
+    found: boolean;
+    source?: 'OpenFoodFacts' | 'UPCitemdb' | 'Manual';
+    barcode?: string;
+    name?: string;
+    brand?: string;
+    category?: string;
+    imageUrl?: string;
+    description?: string;
 }
 
 export interface Category {
@@ -101,7 +116,7 @@ export interface ElectronAPI {
         
         getClients: () => Promise<Client[]>;
         addClient: (data: { nombre: string, telefono: string, saldo?: number }) => Promise<{ id: number }>;
-        payClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
+        payClientDebt: (data: { clientId: number, amount: number, metodoPago?: string }) => Promise<void>;
         addClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
         getClientSales: (clientId: number) => Promise<Sale[]>;
         deleteClient: (id: number) => Promise<void>;
@@ -110,7 +125,7 @@ export interface ElectronAPI {
         getMovimientos: (sessionId: number) => Promise<Movement[]>;
     };
     barcode: {
-        lookup: (barcode: string) => Promise<{ found: boolean, name?: string }>;
+        lookup: (barcode: string) => Promise<ProductApiResult>;
     };
 }
 

@@ -46,16 +46,16 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [cart, session, selectedClient, quickPayKey]);
 
-    // Búsqueda en tiempo real (debounce)
+    // Búsqueda en tiempo real (debounce desde la primer letra)
     useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
-            if (saleSearch.trim().length >= 2) {
-                const results = await window.api.db.searchProducts(saleSearch);
+            if (saleSearch.trim().length >= 1) {
+                const results = await window.api.db.searchProducts(saleSearch.trim());
                 setSearchResults(results);
             } else {
                 setSearchResults([]);
             }
-        }, 300);
+        }, 200);
 
         return () => clearTimeout(delayDebounceFn);
     }, [saleSearch]);
@@ -173,7 +173,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
 
         try {
             if (metodoPago === 'EFECTIVO') {
-                const { value: pagaConStr, isConfirmed } = await MySwal.fire({
+                const { isConfirmed } = await MySwal.fire({
                     title: 'Cobro en Efectivo',
                     html: `
                         <div style="font-size: 1.5rem; margin-bottom: 20px;">Total: <strong style="color: #4ade80;">$${total.toLocaleString()}</strong></div>

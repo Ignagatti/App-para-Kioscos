@@ -165,8 +165,9 @@ describe('Ventas – debounce search on input change', () => {
         expect(window.api.db.searchProducts).toHaveBeenCalledWith('Alf');
     });
 
-    it('does NOT call searchProducts for 1-char input (< 2 chars)', async () => {
+    it('calls searchProducts for 1-char input starting from the first letter', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
+        (window.api.db.searchProducts as any).mockResolvedValue([]);
 
         render(<Ventas session={session} />);
         await waitFor(() => expect(window.api.db.getClients).toHaveBeenCalled());
@@ -174,7 +175,7 @@ describe('Ventas – debounce search on input change', () => {
         fireEvent.change(getSearchInput(), { target: { value: 'A' } });
         await act(async () => { vi.advanceTimersByTime(350); });
 
-        expect(window.api.db.searchProducts).not.toHaveBeenCalled();
+        expect(window.api.db.searchProducts).toHaveBeenCalledWith('A');
     });
 
     it('clicking a dropdown result adds product to cart', async () => {

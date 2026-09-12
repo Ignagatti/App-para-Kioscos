@@ -6,14 +6,17 @@
   "type": "commonjs",
   "scripts": {
     "dev": "vite",
+    "electron": "npm run electron:dev",
     "build": "tsc -b && vite build",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
     "electron:build": "tsc -p tsconfig.electron.json",
     "electron:dev": "concurrently \"vite\" \"tsc -p tsconfig.electron.json && wait-on http://localhost:5173 && electron .\"",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:stress": "electron scripts/stress-test-runner.cjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",

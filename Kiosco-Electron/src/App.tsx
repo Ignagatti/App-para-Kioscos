@@ -61,7 +61,7 @@ function App() {
       <aside className="sidebar">
         <div className="sidebar-header">
           <ShoppingBag className="text-primary" size={28} />
-          <h1>Kiosco Pro</h1>
+          <h1>KioskoGo</h1>
         </div>
 
         <nav>

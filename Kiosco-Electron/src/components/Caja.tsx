@@ -13,7 +13,6 @@ interface CajaProps {
 
 export default function Caja({ session, onSessionChange }: CajaProps) {
     const [montoInicial, setMontoInicial] = useState('');
-    const [lastClosingAmount, setLastClosingAmount] = useState<number | null>(null);
 
     // Close Session State
     const [montoEfectivo, setMontoEfectivo] = useState('');
@@ -34,10 +33,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
         if (!session) {
             window.api.db.getLastClosingAmount().then(amount => {
                 if (amount !== null && amount !== undefined) {
-                    setLastClosingAmount(amount);
                     setMontoInicial(String(amount));
-                } else {
-                    setLastClosingAmount(null);
                 }
             }).catch(() => {});
         }
@@ -84,19 +80,28 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
 
     const handleOpen = async (e: React.FormEvent) => {
         e.preventDefault();
-        const mi = parseFloat(montoInicial.replace(/\./g, '').replace(',', '.'));
+        const rawStr = montoInicial.toString().trim().replace(/\$/g, '').replace(/\./g, '').replace(',', '.');
+        const mi = parseFloat(rawStr);
         if (!montoInicial.trim() || isNaN(mi) || mi < 0) {
             MySwal.fire('Atención', 'Ingresa un monto inicial válido.', 'warning');
             return;
         }
         try {
-            await window.api.db.openCaja(mi);
-            const newSession = await window.api.db.getSessionStatus();
+            const res = await window.api.db.openCaja(mi);
+            let newSession = await window.api.db.getSessionStatus();
+            if (!newSession && res?.id) {
+                newSession = {
+                    id: res.id,
+                    monto_inicial: mi,
+                    fecha_apertura: new Date().toISOString()
+                };
+            }
             onSessionChange(newSession || null);
             setMontoInicial('');
             MySwal.fire({
                 icon: 'success',
                 title: 'Caja abierta',
+                text: `Turno iniciado con $${mi.toLocaleString()}`,
                 timer: 1500,
                 showConfirmButton: false,
                 background: 'var(--bg-card)',
