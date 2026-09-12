@@ -16,7 +16,53 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
-    "test:stress": "electron scripts/stress-test-runner.cjs"
+    "test:stress": "electron scripts/stress-test-runner.cjs",
+    "dist": "npm run build && npm run electron:build && electron-builder --win",
+    "dist:nsis": "npm run build && npm run electron:build && electron-builder --win nsis",
+    "dist:portable": "npm run build && npm run electron:build && electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.kioscogo.app",
+    "productName": "KioskoGo",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron-dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/logokiosco.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "KioskoGo",
+      "installerIcon": "assets/logokiosco.ico",
+      "uninstallerIcon": "assets/logokiosco.ico",
+      "installerHeaderIcon": "assets/logokiosco.ico"
+    }
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",

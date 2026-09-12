@@ -14,7 +14,7 @@ function createWindow() {
         minWidth: 900,
         minHeight: 600,
         title: "KioskoGo",
-        icon: path_1.default.join(__dirname, '../public/favicon.svg'),
+        icon: path_1.default.join(__dirname, '../assets/logokiosco.ico'),
         webPreferences: {
             preload: path_1.default.join(__dirname, 'preload.js'),
             contextIsolation: true,
