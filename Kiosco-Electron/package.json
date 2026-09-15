@@ -1,5 +1,8 @@
 {
   "name": "kiosco-electron",
+  "productName": "KioskoGo",
+  "description": "KioskoGo - Sistema Profesional de Punto de Venta y Gestión de Kioscos",
+  "author": "KioskoGo",
   "private": true,
   "version": "1.0.0",
   "main": "electron-dist/main.js",

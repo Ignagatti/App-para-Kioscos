@@ -22,6 +22,7 @@ function createWindow() {
         },
     });
     win.setMenuBarVisibility(false);
+    win.maximize();
     const isDev = !electron_1.app.isPackaged;
     if (isDev) {
         win.loadURL('http://localhost:5173');
