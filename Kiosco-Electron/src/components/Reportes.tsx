@@ -35,7 +35,7 @@ export default function Reportes() {
 
     const handleClearHistory = async () => {
         const result = await MySwal.fire({
-            title: '¿Vaciarlos reportes de verdad?',
+            title: '¿Vaciar los reportes de verdad?',
             text: "Se borrarán todas las ventas y cierres de caja antiguos. Esta acción no se puede deshacer.",
             icon: 'warning',
             showCancelButton: true,
@@ -71,8 +71,8 @@ export default function Reportes() {
                         flex: 2, 
                         padding: '15px', 
                         backgroundColor: view === 'detail' ? '#3b82f6' : 'var(--bg-card)', 
-                        color: 'white', 
-                        border: 'none',
+                        color: view === 'detail' ? 'white' : 'var(--text-secondary)', 
+                        border: view === 'detail' ? '1px solid #3b82f6' : '1px solid var(--border)', 
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -90,8 +90,8 @@ export default function Reportes() {
                         flex: 2, 
                         padding: '15px', 
                         backgroundColor: view === 'monthly' ? '#3b82f6' : 'var(--bg-card)', 
-                        color: 'white', 
-                        border: 'none',
+                        color: view === 'monthly' ? 'white' : 'var(--text-secondary)', 
+                        border: view === 'monthly' ? '1px solid #3b82f6' : '1px solid var(--border)', 
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

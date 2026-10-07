@@ -6,15 +6,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
 const db_1 = require("./db");
-const productApi_1 = require("./services/productApi");
+const https_1 = __importDefault(require("https"));
 function createWindow() {
     const win = new electron_1.BrowserWindow({
         width: 1280,
         height: 850,
         minWidth: 900,
         minHeight: 600,
-        title: "KioskoGo",
-        icon: path_1.default.join(__dirname, '../assets/logokiosco.ico'),
+        title: "Kiosco Pro",
+        icon: path_1.default.join(__dirname, '../public/icon.png'),
         webPreferences: {
             preload: path_1.default.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -22,7 +22,6 @@ function createWindow() {
         },
     });
     win.setMenuBarVisibility(false);
-    win.maximize();
     const isDev = !electron_1.app.isPackaged;
     if (isDev) {
         win.loadURL('http://localhost:5173');
@@ -30,6 +29,36 @@ function createWindow() {
     else {
         win.loadFile(path_1.default.join(__dirname, '../dist/index.html'));
     }
+}
+// ── API Externa: Open Food Facts ──
+function fetchProductFromAPI(barcode) {
+    return new Promise((resolve) => {
+        const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+        const timer = setTimeout(() => resolve({ found: false }), 3_000);
+        https_1.default.get(url, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+                clearTimeout(timer);
+                try {
+                    const json = JSON.parse(data);
+                    if (json.status === 1 && json.product) {
+                        const name = json.product.product_name || json.product.product_name_es || json.product.product_name_en || '';
+                        resolve({ found: true, name });
+                    }
+                    else {
+                        resolve({ found: false });
+                    }
+                }
+                catch {
+                    resolve({ found: false });
+                }
+            });
+        }).on('error', () => {
+            clearTimeout(timer);
+            resolve({ found: false });
+        });
+    });
 }
 electron_1.app.whenReady().then(() => {
     console.log("Iniciando Aplicación...");
@@ -63,7 +92,7 @@ electron_1.ipcMain.handle('db:saveProduct', (_, data) => db_1.dbService.saveProd
 electron_1.ipcMain.handle('db:deleteProduct', (_, id) => db_1.dbService.deleteProduct(id));
 // ── API Externa ──
 electron_1.ipcMain.handle('api:lookupBarcode', async (_, barcode) => {
-    return await productApi_1.productApiAggregator.lookup(barcode);
+    return await fetchProductFromAPI(barcode);
 });
 // ── Categorías ──
 electron_1.ipcMain.handle('db:getCategories', () => db_1.dbService.getCategories());
@@ -88,10 +117,25 @@ electron_1.ipcMain.handle('db:clearHistory', () => db_1.dbService.clearHistory()
 electron_1.ipcMain.handle('db:getLastClosingAmount', () => db_1.dbService.getLastClosingAmount());
 electron_1.ipcMain.handle('db:getClients', () => db_1.dbService.getClients());
 electron_1.ipcMain.handle('db:addClient', (_, data) => db_1.dbService.addClient(data.nombre, data.telefono, data.saldo || 0));
-electron_1.ipcMain.handle('db:payClientDebt', (_, data) => db_1.dbService.payClientDebt(data.clientId, data.amount, data.metodoPago));
+electron_1.ipcMain.handle('db:payClientDebt', (_, data) => db_1.dbService.payClientDebt(data.clientId, data.amount));
 electron_1.ipcMain.handle('db:addClientDebt', (_, data) => db_1.dbService.addClientDebt(data.clientId, data.amount));
 electron_1.ipcMain.handle('db:getClientSales', (_, clientId) => db_1.dbService.getClientSales(clientId));
 electron_1.ipcMain.handle('db:deleteClient', (_, id) => db_1.dbService.deleteClient(id));
 // ── Movimientos ──
 electron_1.ipcMain.handle('db:addMovimiento', (_, data) => db_1.dbService.addMovimiento(data.tipo, data.categoria, data.monto, data.descripcion, data.sesionId, data.metodoPago));
 electron_1.ipcMain.handle('db:getMovimientos', (_, sessionId) => db_1.dbService.getMovimientos(sessionId));
+// ── Proveedores ──
+electron_1.ipcMain.handle('db:getSuppliers', () => db_1.dbService.getSuppliers());
+electron_1.ipcMain.handle('db:saveSupplier', (_, data) => db_1.dbService.saveSupplier(data));
+electron_1.ipcMain.handle('db:deleteSupplier', (_, id) => db_1.dbService.deleteSupplier(id));
+electron_1.ipcMain.handle('db:getSuppliersByProduct', (_, productId) => db_1.dbService.getSuppliersByProduct(productId));
+electron_1.ipcMain.handle('db:getProductsBySupplier', (_, supplierId) => db_1.dbService.getProductsBySupplier(supplierId));
+electron_1.ipcMain.handle('db:updateProductSuppliers', (_, data) => db_1.dbService.updateProductSuppliers(data.productId, data.supplierIds));
+// ── Estadísticas ──
+electron_1.ipcMain.handle('db:getStatsResumen', (_, period) => db_1.dbService.getStatsResumen(period));
+electron_1.ipcMain.handle('db:getTopProductos', (_, period) => db_1.dbService.getTopProductos(period));
+electron_1.ipcMain.handle('db:getMenosVendidos', (_, period) => db_1.dbService.getMenosVendidos(period));
+electron_1.ipcMain.handle('db:getStatsMetodoPago', (_, period) => db_1.dbService.getStatsMetodoPago(period));
+electron_1.ipcMain.handle('db:getStatsCategorias', (_, period) => db_1.dbService.getStatsCategorias(period));
+electron_1.ipcMain.handle('db:getStatsHoraPico', (_, period) => db_1.dbService.getStatsHoraPico(period));
+electron_1.ipcMain.handle('db:getProductosBajoStock', (_, umbral) => db_1.dbService.getProductosBajoStock(umbral));

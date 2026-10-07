@@ -35,6 +35,21 @@ export const createApiMock = (): ElectronAPI => ({
 
         addMovimiento: vi.fn().mockResolvedValue(undefined),
         getMovimientos: vi.fn().mockResolvedValue([]),
+
+        getSuppliers: vi.fn().mockResolvedValue([]),
+        saveSupplier: vi.fn().mockResolvedValue({ id: 1, updated: false }),
+        deleteSupplier: vi.fn().mockResolvedValue(undefined),
+        getSuppliersByProduct: vi.fn().mockResolvedValue([]),
+        getProductsBySupplier: vi.fn().mockResolvedValue([]),
+        updateProductSuppliers: vi.fn().mockResolvedValue(undefined),
+
+        getStatsResumen: vi.fn().mockResolvedValue({ total_ventas: 0, ingresos: 0, ganancia: 0, ticket_promedio: 0 }),
+        getTopProductos: vi.fn().mockResolvedValue([]),
+        getMenosVendidos: vi.fn().mockResolvedValue([]),
+        getStatsMetodoPago: vi.fn().mockResolvedValue([]),
+        getStatsCategorias: vi.fn().mockResolvedValue([]),
+        getStatsHoraPico: vi.fn().mockResolvedValue([]),
+        getProductosBajoStock: vi.fn().mockResolvedValue([]),
     },
     barcode: {
         lookup: vi.fn().mockResolvedValue({ found: false }),

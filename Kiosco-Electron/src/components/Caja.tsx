@@ -49,9 +49,12 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
         };
         window.addEventListener('keydown', handleEsc);
         
-        // Polling to update caja total every 5 seconds just in case of new sales
+        // Polling to update caja total and movements every 5 seconds
         const interval = setInterval(() => {
-            if (session) loadCajaTotal(session.id);
+            if (session) {
+                loadCajaTotal(session.id);
+                loadMovimientos(session.id);
+            }
         }, 5000);
         
         return () => {
@@ -334,9 +337,9 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                             </thead>
                             <tbody>
                                 {!session ? (
-                                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>Abre la caja para ver y registrar movimientos.</td></tr>
+                                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>Abre la caja para ver y registrar movimientos.</td></tr>
                                 ) : movimientos.length === 0 ? (
-                                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>No hay movimientos en esta sesión.</td></tr>
+                                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>No hay movimientos en esta sesión.</td></tr>
                                 ) : movimientos.map((mov, idx) => (
                                     <tr key={idx}>
                                         <td style={{ color: 'var(--text-secondary)' }}>{new Date(mov.fecha).toLocaleTimeString()}</td>

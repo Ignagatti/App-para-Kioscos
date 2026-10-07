@@ -26,6 +26,11 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
 
     const [searchResults, setSearchResults] = useState<Product[]>([]);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+    useEffect(() => {
+        setHighlightedIndex(0);
+    }, [searchResults]);
 
 
     useEffect(() => {
@@ -88,7 +93,8 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
         setCart([]);
         setSelectedClient(null);
         setIsPaymentModalOpen(false);
-        
+        loadClients();
+
         MySwal.fire({
             icon: 'success',
             title: 'Venta completada',
@@ -154,6 +160,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                     // Pago mixto: abona algo ahora, el resto queda como deuda
                     await finalizeSale(total, metodoPago, null);
                     await window.api.db.addClientDebt({ clientId: selectedClient, amount: deuda });
+                    loadClients();
                     // Corrección de caja: restamos la parte que NO se cobró en efectivo
                     await window.api.db.addMovimiento({
                         tipo: 'SALIDA',
@@ -176,10 +183,10 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                 const { isConfirmed } = await MySwal.fire({
                     title: 'Cobro en Efectivo',
                     html: `
-                        <div style="font-size: 1.5rem; margin-bottom: 20px;">Total: <strong style="color: #4ade80;">$${total.toLocaleString()}</strong></div>
+                        <div style="font-size: 1.5rem; margin-bottom: 20px;">Total: <strong style="color: var(--success);">$${total.toLocaleString()}</strong></div>
                         <div style="margin-bottom: 10px; opacity: 0.8;">¿Con cuánto paga el cliente?</div>
-                        <input id="paga-con" type="number" class="swal2-input" style="width: 80%; margin: 10px auto; text-align: center; font-size: 1.8rem; font-weight: 700; color: white; background: #1e293b; border: 1px solid #334155;" placeholder="0">
-                        <div id="vuelto-display" style="font-size: 2.2rem; font-weight: 800; color: #4ade80; margin-top: 15px; min-height: 3.5rem;"></div>
+                        <input id="paga-con" type="number" class="swal2-input" style="width: 80%; margin: 10px auto; text-align: center; font-size: 1.8rem; font-weight: 700; color: var(--text-primary); background: var(--bg-main); border: 1px solid var(--border);" placeholder="0">
+                        <div id="vuelto-display" style="font-size: 2.2rem; font-weight: 800; color: var(--success); margin-top: 15px; min-height: 3.5rem;"></div>
                     `,
                     didOpen: () => {
                         const input = document.getElementById('paga-con') as HTMLInputElement;
@@ -314,6 +321,27 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
     };
 
     const handleSaleSearch = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (searchResults.length > 0) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlightedIndex(prev => Math.min(prev + 1, searchResults.length - 1));
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedIndex(prev => Math.max(prev - 1, 0));
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const selected = searchResults[highlightedIndex];
+                if (selected) {
+                    await handleSelectResult(selected);
+                }
+                return;
+            }
+        }
+
         if (e.key === 'Enter') {
             const now = Date.now();
             
@@ -372,6 +400,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
 
             if (gramosStr) {
                 const gramos = parseFloat(gramosStr);
+                if (gramos <= 0) return;
                 const kilos = gramos / 1000;
                 // El precio base para este item será el precio por kilo
                 const precio = product.precio_por_kilo || product.precio || 0;
@@ -436,13 +465,20 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                     />
                     {searchResults.length > 0 && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, width: '100%', backgroundColor: 'var(--bg-card)', border: '1px solid var(--primary)', borderRadius: '12px', marginTop: '10px', zIndex: 10, maxHeight: '300px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
-                            {searchResults.map(p => (
+                            {searchResults.map((p, idx) => (
                                 <div 
                                     key={p.id} 
                                     onClick={() => handleSelectResult(p)}
-                                    style={{ padding: '15px 20px', borderBottom: '1px solid var(--border)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                                    onMouseOver={e => e.currentTarget.style.backgroundColor = 'var(--border)'}
-                                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                    style={{ 
+                                        padding: '15px 20px', 
+                                        borderBottom: '1px solid var(--border)', 
+                                        cursor: 'pointer', 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between', 
+                                        alignItems: 'center',
+                                        backgroundColor: idx === highlightedIndex ? 'rgba(59, 130, 246, 0.15)' : 'transparent'
+                                    }}
+                                    onMouseOver={() => setHighlightedIndex(idx)}
                                 >
                                     <div>
                                         <div style={{ fontWeight: 600 }}>{p.nombre} {p.es_por_kilo ? <span style={{fontSize: '0.75rem', color: '#f59e0b'}}>(Peso)</span> : ''}</div>
@@ -484,7 +520,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                         <td>
                                             {item.es_por_kilo ? (
                                                 <div style={{ textAlign: 'center', fontWeight: 700 }}>
-                                                    {(item.cantidad * 1000)}g
+                                                    {parseFloat((item.cantidad * 1000).toFixed(2))}g
                                                 </div>
                                             ) : (
                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -573,45 +609,45 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
             {/* Modal de Cobro Pro */}
             {isPaymentModalOpen && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' }}>
-                    <div style={{ backgroundColor: 'var(--bg-card)', padding: '40px', borderRadius: '24px', width: '500px', border: '1px solid var(--primary)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)', position: 'relative' }}>
+                    <div className="payment-modal-card">
                         <h2 style={{ marginTop: 0, marginBottom: '10px', textAlign: 'center', fontSize: '1.2rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '2px' }}>Confirmar Cobro</h2>
-                        <div style={{ fontSize: '4.5rem', fontWeight: 800, textAlign: 'center', color: '#4ade80', marginBottom: '30px', textShadow: '0 0 20px rgba(74, 222, 128, 0.2)' }}>
+                        <div className="payment-modal-total">
                             ${totalCart.toLocaleString()}
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             <button 
                                 onClick={() => handleCompleteSale('EFECTIVO')}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '2px solid #22c55e', borderRadius: '16px', color: 'white', cursor: 'pointer', transition: 'all 0.2s' }}
+                                className="payment-btn payment-btn-efectivo"
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ backgroundColor: '#22c55e', padding: '10px', borderRadius: '12px' }}><Banknote size={24} /></div>
+                                    <div style={{ backgroundColor: '#22c55e', padding: '10px', borderRadius: '12px', color: 'white' }}><Banknote size={24} /></div>
                                     <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Efectivo</span>
                                 </div>
-                                <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '8px', fontSize: '0.9rem' }}>Presioná [1] o [Enter]</span>
+                                <span className="payment-badge">Presioná [1] o [Enter]</span>
                             </button>
 
                             <button 
                                 onClick={() => handleCompleteSale('OTROS')}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '2px solid #3b82f6', borderRadius: '16px', color: 'white', cursor: 'pointer' }}
+                                className="payment-btn payment-btn-otros"
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ backgroundColor: '#3b82f6', padding: '10px', borderRadius: '12px' }}><CreditCard size={24} /></div>
+                                    <div style={{ backgroundColor: '#3b82f6', padding: '10px', borderRadius: '12px', color: 'white' }}><CreditCard size={24} /></div>
                                     <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Otros (Débito/QR)</span>
                                 </div>
-                                <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '8px', fontSize: '0.9rem' }}>Presioná [2]</span>
+                                <span className="payment-badge">Presioná [2]</span>
                             </button>
 
                             <button 
                                 onClick={() => handleCompleteSale('FIADO')}
                                 disabled={cart.length === 0}
-                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', backgroundColor: selectedClient ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.05)', border: `2px solid ${selectedClient ? '#f59e0b' : '#334155'}`, borderRadius: '16px', color: 'white', cursor: cart.length > 0 ? 'pointer' : 'not-allowed', opacity: cart.length > 0 ? 1 : 0.5 }}
+                                className={selectedClient ? "payment-btn payment-btn-fiado" : "payment-btn payment-btn-fiado-inactive"}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ backgroundColor: selectedClient ? '#f59e0b' : '#334155', padding: '10px', borderRadius: '12px' }}><User size={24} /></div>
+                                    <div style={{ backgroundColor: selectedClient ? '#f59e0b' : '#64748b', padding: '10px', borderRadius: '12px', color: 'white' }}><User size={24} /></div>
                                     <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Anotar Fiado</span>
                                 </div>
-                                <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '8px', fontSize: '0.9rem' }}>Presioná [3]</span>
+                                <span className="payment-badge">Presioná [3]</span>
                             </button>
                         </div>
 
@@ -675,7 +711,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                                 handleCompleteSale('FIADO', res.id);
                                             }}
                                         >
-                                            <div style={{ color: '#4ade80', fontWeight: 600 }}>
+                                            <div style={{ color: 'var(--success)', fontWeight: 600 }}>
                                                 {filteredClientsForSearch.length > 0 ? '¿No está en la lista?' : 'No existe:'} 
                                                 <span style={{ color: 'var(--text-primary)' }}> "{clientSearch}"</span>
                                             </div>

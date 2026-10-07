@@ -99,9 +99,32 @@ function initDb() {
             fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (sesion_id) REFERENCES sesiones_caja(id)
         );
+        -- 8. Proveedores
+        CREATE TABLE IF NOT EXISTS proveedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            contacto TEXT,
+            telefono TEXT,
+            email TEXT,
+            direccion TEXT,
+            notas TEXT,
+            fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- 9. Relación Producto-Proveedor (Muchos a Muchos)
+        CREATE TABLE IF NOT EXISTS producto_proveedor (
+            producto_id INTEGER NOT NULL,
+            proveedor_id INTEGER NOT NULL,
+            PRIMARY KEY (producto_id, proveedor_id),
+            FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE,
+            FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE CASCADE
+        );
+
         -- Índices para velocidad
         CREATE INDEX IF NOT EXISTS idx_prod_codigo ON productos(codigo_barras);
         CREATE INDEX IF NOT EXISTS idx_ventas_sesion ON ventas(sesion_id);
+        CREATE INDEX IF NOT EXISTS idx_pp_prod ON producto_proveedor(producto_id);
+        CREATE INDEX IF NOT EXISTS idx_pp_prov ON producto_proveedor(proveedor_id);
 
         -- Datos iniciales
         INSERT OR IGNORE INTO categorias (nombre) VALUES 
@@ -131,8 +154,17 @@ function initDb() {
     catch (e) { /* Ya existe */ }
     console.log("Base de Datos v2 Inicializada en:", dbPath);
 }
+function getPeriodStart(period) {
+    const map = {
+        today: "date('now', '-3 hours')",
+        week: "date('now', '-3 hours', '-6 days')",
+        month: "date('now', '-3 hours', 'start of month')",
+    };
+    return map[period] ?? "'2000-01-01'";
+}
 const PRODUCT_SELECT = `
-    SELECT p.*, COALESCE(c.nombre, 'Varios') as categoria 
+    SELECT p.*, COALESCE(c.nombre, 'Varios') as categoria,
+    (SELECT GROUP_CONCAT(prov.nombre, ', ') FROM proveedores prov JOIN producto_proveedor pp ON prov.id = pp.proveedor_id WHERE pp.producto_id = p.id) as proveedores
     FROM productos p 
     LEFT JOIN categorias c ON p.categoria_id = c.id
 `;
@@ -317,5 +349,149 @@ exports.dbService = {
             exports.db.prepare("DELETE FROM sesiones_caja WHERE estado = 'CERRADA'").run();
         })();
         return { success: true };
+    },
+    // ── Proveedores ──
+    getSuppliers: () => exports.db.prepare('SELECT * FROM proveedores ORDER BY nombre').all(),
+    saveSupplier: (s) => {
+        if (s.id) {
+            exports.db.prepare('UPDATE proveedores SET nombre=?, contacto=?, telefono=?, email=?, direccion=?, notas=? WHERE id=?')
+                .run(s.nombre, s.contacto, s.telefono, s.email, s.direccion, s.notas, s.id);
+            return { id: s.id, updated: true };
+        }
+        else {
+            const res = exports.db.prepare('INSERT INTO proveedores (nombre, contacto, telefono, email, direccion, notas) VALUES (?,?,?,?,?,?)')
+                .run(s.nombre, s.contacto, s.telefono, s.email, s.direccion, s.notas);
+            return { id: Number(res.lastInsertRowid), updated: false };
+        }
+    },
+    deleteSupplier: (id) => exports.db.prepare('DELETE FROM proveedores WHERE id = ?').run(id),
+    getSuppliersByProduct: (productId) => {
+        return exports.db.prepare(`
+            SELECT prov.* FROM proveedores prov
+            JOIN producto_proveedor pp ON prov.id = pp.proveedor_id
+            WHERE pp.producto_id = ?
+        `).all(productId);
+    },
+    getProductsBySupplier: (supplierId) => {
+        return exports.db.prepare(`
+            ${PRODUCT_SELECT}
+            JOIN producto_proveedor pp ON p.id = pp.producto_id
+            WHERE pp.proveedor_id = ?
+            ORDER BY p.nombre
+        `).all(supplierId);
+    },
+    updateProductSuppliers: (productId, supplierIds) => {
+        const txn = exports.db.transaction(() => {
+            exports.db.prepare('DELETE FROM producto_proveedor WHERE producto_id = ?').run(productId);
+            const ins = exports.db.prepare('INSERT INTO producto_proveedor (producto_id, proveedor_id) VALUES (?, ?)');
+            for (const sid of supplierIds) {
+                ins.run(productId, sid);
+            }
+        });
+        return txn();
+    },
+    // ── Estadísticas ──
+    getStatsResumen: (period) => {
+        const from = getPeriodStart(period);
+        return exports.db.prepare(`
+            SELECT
+                (SELECT COUNT(*) FROM ventas WHERE date(fecha) >= ${from}) as total_ventas,
+                (SELECT COALESCE(SUM(total), 0) FROM ventas WHERE date(fecha) >= ${from}) as ingresos,
+                (SELECT COALESCE(AVG(total), 0) FROM ventas WHERE date(fecha) >= ${from}) as ticket_promedio,
+                (SELECT COALESCE(SUM(vd.subtotal - vd.costo_unitario * vd.cantidad), 0)
+                 FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id
+                 WHERE date(v.fecha) >= ${from}) as ganancia
+        `).get();
+    },
+    getTopProductos: (period) => {
+        const from = getPeriodStart(period);
+        return exports.db.prepare(`
+            SELECT
+                vd.nombre,
+                SUM(vd.cantidad) as cantidad_total,
+                SUM(vd.subtotal) as ingresos_total,
+                SUM(vd.subtotal - vd.costo_unitario * vd.cantidad) as ganancia_total,
+                COALESCE((SELECT es_por_kilo FROM productos WHERE nombre = vd.nombre LIMIT 1), 0) as es_por_kilo
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            WHERE date(v.fecha) >= ${from}
+            GROUP BY vd.nombre
+            ORDER BY cantidad_total DESC
+            LIMIT 10
+        `).all();
+    },
+    getMenosVendidos: (period) => {
+        const from = getPeriodStart(period);
+        return exports.db.prepare(`
+            SELECT
+                p.nombre,
+                p.es_por_kilo,
+                COALESCE(s.cantidad_total, 0) as cantidad_total,
+                COALESCE(s.ingresos_total, 0) as ingresos_total,
+                COALESCE(s.ganancia_total, 0) as ganancia_total
+            FROM productos p
+            LEFT JOIN (
+                SELECT
+                    LOWER(vd.nombre) as nombre_lower,
+                    SUM(vd.cantidad) as cantidad_total,
+                    SUM(vd.subtotal) as ingresos_total,
+                    SUM(vd.subtotal - vd.costo_unitario * vd.cantidad) as ganancia_total
+                FROM venta_detalles vd
+                JOIN ventas v ON vd.venta_id = v.id
+                WHERE date(v.fecha) >= ${from}
+                GROUP BY LOWER(vd.nombre)
+            ) s ON LOWER(p.nombre) = s.nombre_lower
+            ORDER BY cantidad_total ASC, p.nombre ASC
+            LIMIT 10
+        `).all();
+    },
+    getStatsMetodoPago: (period) => {
+        const from = getPeriodStart(period);
+        return exports.db.prepare(`
+            SELECT metodo_pago, COUNT(*) as cantidad, COALESCE(SUM(total), 0) as monto_total
+            FROM ventas WHERE date(fecha) >= ${from}
+            GROUP BY metodo_pago
+        `).all();
+    },
+    getStatsCategorias: (period) => {
+        const from = getPeriodStart(period);
+        return exports.db.prepare(`
+            SELECT
+                COALESCE(c.nombre, 'Sin categoría') as categoria,
+                COALESCE(SUM(vd.subtotal), 0) as ingresos,
+                COALESCE(SUM(vd.cantidad), 0) as unidades,
+                COALESCE(SUM(vd.subtotal - vd.costo_unitario * vd.cantidad), 0) as ganancia
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            LEFT JOIN (SELECT LOWER(nombre) as nom, MIN(categoria_id) as cat_id FROM productos GROUP BY LOWER(nombre)) p
+                ON LOWER(vd.nombre) = p.nom
+            LEFT JOIN categorias c ON c.id = p.cat_id
+            WHERE date(v.fecha) >= ${from}
+            GROUP BY p.cat_id, COALESCE(c.nombre, 'Sin categoría')
+            ORDER BY ingresos DESC
+        `).all();
+    },
+    getStatsHoraPico: (period) => {
+        const from = getPeriodStart(period);
+        return exports.db.prepare(`
+            SELECT
+                CAST(strftime('%H', fecha) AS INTEGER) as hora,
+                COUNT(*) as cantidad_ventas,
+                COALESCE(SUM(total), 0) as monto_total
+            FROM ventas
+            WHERE date(fecha) >= ${from}
+            GROUP BY hora
+            ORDER BY hora
+        `).all();
+    },
+    getProductosBajoStock: (umbral = 5) => {
+        return exports.db.prepare(`
+            SELECT p.nombre, p.stock, p.precio, p.es_por_kilo, COALESCE(c.nombre, 'Varios') as categoria
+            FROM productos p
+            LEFT JOIN categorias c ON c.id = p.categoria_id
+            WHERE p.stock <= ? AND p.stock >= 0
+            ORDER BY p.stock ASC
+            LIMIT 20
+        `).all(umbral);
     },
 };

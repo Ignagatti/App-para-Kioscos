@@ -9,21 +9,7 @@ export interface Product {
     es_por_kilo: number;
     precio_por_kilo: number;
     categoria: string;
-    marca?: string | null;
-    imagen_url?: string | null;
-    descripcion?: string | null;
-    fuente_datos?: string | null;
-}
-
-export interface ProductApiResult {
-    found: boolean;
-    source?: 'OpenFoodFacts' | 'UPCitemdb' | 'Manual';
-    barcode?: string;
-    name?: string;
-    brand?: string;
-    category?: string;
-    imageUrl?: string;
-    description?: string;
+    proveedores?: string;
 }
 
 export interface Category {
@@ -78,6 +64,17 @@ export interface Client {
     telefono: string;
 }
 
+export interface Supplier {
+    id: number;
+    nombre: string;
+    contacto?: string;
+    telefono?: string;
+    email?: string;
+    direccion?: string;
+    notas?: string;
+    fecha_creacion?: string;
+}
+
 export interface Movement {
     id: number;
     fecha: string;
@@ -87,6 +84,48 @@ export interface Movement {
     descripcion: string;
     metodo_pago: string;
     sesion_id: number;
+}
+
+export interface StatsResumen {
+    total_ventas: number;
+    ingresos: number;
+    ganancia: number;
+    ticket_promedio: number;
+}
+
+export interface TopProducto {
+    nombre: string;
+    cantidad_total: number;
+    ingresos_total: number;
+    ganancia_total: number;
+    es_por_kilo: number;
+}
+
+export interface StatsMetodoPago {
+    metodo_pago: string;
+    cantidad: number;
+    monto_total: number;
+}
+
+export interface StatsCategoria {
+    categoria: string;
+    ingresos: number;
+    unidades: number;
+    ganancia: number;
+}
+
+export interface StatsHoraPico {
+    hora: number;
+    cantidad_ventas: number;
+    monto_total: number;
+}
+
+export interface ProductoBajoStock {
+    nombre: string;
+    stock: number;
+    precio: number;
+    categoria: string;
+    es_por_kilo: number;
 }
 
 export interface ElectronAPI {
@@ -116,16 +155,31 @@ export interface ElectronAPI {
         
         getClients: () => Promise<Client[]>;
         addClient: (data: { nombre: string, telefono: string, saldo?: number }) => Promise<{ id: number }>;
-        payClientDebt: (data: { clientId: number, amount: number, metodoPago?: string }) => Promise<void>;
+        payClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
         addClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
         getClientSales: (clientId: number) => Promise<Sale[]>;
         deleteClient: (id: number) => Promise<void>;
         
         addMovimiento: (data: { tipo: string, categoria: string, monto: number, descripcion: string, sesionId: number, metodoPago: string }) => Promise<void>;
         getMovimientos: (sessionId: number) => Promise<Movement[]>;
+        
+        getSuppliers: () => Promise<Supplier[]>;
+        saveSupplier: (data: Partial<Supplier>) => Promise<{ id: number, updated: boolean }>;
+        deleteSupplier: (id: number) => Promise<void>;
+        getSuppliersByProduct: (productId: number) => Promise<Supplier[]>;
+        getProductsBySupplier: (supplierId: number) => Promise<Product[]>;
+        updateProductSuppliers: (data: { productId: number, supplierIds: number[] }) => Promise<void>;
+
+        getStatsResumen: (period: string) => Promise<StatsResumen>;
+        getTopProductos: (period: string) => Promise<TopProducto[]>;
+        getMenosVendidos: (period: string) => Promise<TopProducto[]>;
+        getStatsMetodoPago: (period: string) => Promise<StatsMetodoPago[]>;
+        getStatsCategorias: (period: string) => Promise<StatsCategoria[]>;
+        getStatsHoraPico: (period: string) => Promise<StatsHoraPico[]>;
+        getProductosBajoStock: (umbral?: number) => Promise<ProductoBajoStock[]>;
     };
     barcode: {
-        lookup: (barcode: string) => Promise<ProductApiResult>;
+        lookup: (barcode: string) => Promise<{ found: boolean, name?: string }>;
     };
 }
 

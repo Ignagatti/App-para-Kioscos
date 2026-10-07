@@ -6,15 +6,19 @@ export interface Shortcuts {
     tabReportes: string;
     tabClientes: string;
     tabCaja: string;
+    tabProveedores: string;
+    tabEstadisticas: string;
     pagarEfectivo: string;
 }
 
 export const DEFAULT_SHORTCUTS: Shortcuts = {
     tabVentas: 'F1',
-    tabInventario: 'F2',
-    tabReportes: 'F3',
-    tabClientes: 'F4',
-    tabCaja: 'F5',
+    tabCaja: 'F2',
+    tabInventario: 'F3',
+    tabProveedores: 'F4',
+    tabClientes: 'F5',
+    tabReportes: 'F6',
+    tabEstadisticas: 'F7',
     pagarEfectivo: 'F12',
 };
 

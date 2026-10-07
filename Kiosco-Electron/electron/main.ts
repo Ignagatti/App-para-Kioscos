@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { dbService, initDb, db } from './db';
-import { productApiAggregator } from './services/productApi';
+import https from 'https';
+import http from 'http';
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -9,8 +10,8 @@ function createWindow() {
         height: 850,
         minWidth: 900,
         minHeight: 600,
-        title: "KioskoGo",
-        icon: path.join(__dirname, '../assets/logokiosco.ico'),
+        title: "Kiosco Pro",
+        icon: path.join(__dirname, '../public/icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
@@ -19,7 +20,6 @@ function createWindow() {
     });
 
     win.setMenuBarVisibility(false);
-    win.maximize();
 
     const isDev = !app.isPackaged;
     if (isDev) {
@@ -27,6 +27,35 @@ function createWindow() {
     } else {
         win.loadFile(path.join(__dirname, '../dist/index.html'));
     }
+}
+
+// ── API Externa: Open Food Facts ──
+function fetchProductFromAPI(barcode: string): Promise<{ found: boolean; name?: string }> {
+    return new Promise((resolve) => {
+        const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+        const timer = setTimeout(() => resolve({ found: false }), 3_000);
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', (chunk) => data += chunk);
+            res.on('end', () => {
+                clearTimeout(timer);
+                try {
+                    const json = JSON.parse(data);
+                    if (json.status === 1 && json.product) {
+                        const name = json.product.product_name || json.product.product_name_es || json.product.product_name_en || '';
+                        resolve({ found: true, name });
+                    } else {
+                        resolve({ found: false });
+                    }
+                } catch {
+                    resolve({ found: false });
+                }
+            });
+        }).on('error', () => {
+            clearTimeout(timer);
+            resolve({ found: false });
+        });
+    });
 }
 
 app.whenReady().then(() => {
@@ -65,8 +94,8 @@ ipcMain.handle('db:saveProduct', (_, data) => dbService.saveProduct(data));
 ipcMain.handle('db:deleteProduct', (_, id) => dbService.deleteProduct(id));
 
 // ── API Externa ──
-ipcMain.handle('api:lookupBarcode', async (_, barcode: string) => {
-    return await productApiAggregator.lookup(barcode);
+ipcMain.handle('api:lookupBarcode', async (_, barcode) => {
+    return await fetchProductFromAPI(barcode);
 });
 
 // ── Categorías ──
@@ -96,7 +125,7 @@ ipcMain.handle('db:clearHistory', () => dbService.clearHistory());
 ipcMain.handle('db:getLastClosingAmount', () => dbService.getLastClosingAmount());
 ipcMain.handle('db:getClients', () => dbService.getClients());
 ipcMain.handle('db:addClient', (_, data) => dbService.addClient(data.nombre, data.telefono, data.saldo || 0));
-ipcMain.handle('db:payClientDebt', (_, data) => dbService.payClientDebt(data.clientId, data.amount, data.metodoPago));
+ipcMain.handle('db:payClientDebt', (_, data) => dbService.payClientDebt(data.clientId, data.amount));
 ipcMain.handle('db:addClientDebt', (_, data) => dbService.addClientDebt(data.clientId, data.amount));
 ipcMain.handle('db:getClientSales', (_, clientId) => dbService.getClientSales(clientId));
 ipcMain.handle('db:deleteClient', (_, id) => dbService.deleteClient(id));
@@ -104,3 +133,20 @@ ipcMain.handle('db:deleteClient', (_, id) => dbService.deleteClient(id));
 // ── Movimientos ──
 ipcMain.handle('db:addMovimiento', (_, data) => dbService.addMovimiento(data.tipo, data.categoria, data.monto, data.descripcion, data.sesionId, data.metodoPago));
 ipcMain.handle('db:getMovimientos', (_, sessionId) => dbService.getMovimientos(sessionId));
+
+// ── Proveedores ──
+ipcMain.handle('db:getSuppliers', () => dbService.getSuppliers());
+ipcMain.handle('db:saveSupplier', (_, data) => dbService.saveSupplier(data));
+ipcMain.handle('db:deleteSupplier', (_, id) => dbService.deleteSupplier(id));
+ipcMain.handle('db:getSuppliersByProduct', (_, productId) => dbService.getSuppliersByProduct(productId));
+ipcMain.handle('db:getProductsBySupplier', (_, supplierId) => dbService.getProductsBySupplier(supplierId));
+ipcMain.handle('db:updateProductSuppliers', (_, data) => dbService.updateProductSuppliers(data.productId, data.supplierIds));
+
+// ── Estadísticas ──
+ipcMain.handle('db:getStatsResumen', (_, period) => dbService.getStatsResumen(period));
+ipcMain.handle('db:getTopProductos', (_, period) => dbService.getTopProductos(period));
+ipcMain.handle('db:getMenosVendidos', (_, period) => dbService.getMenosVendidos(period));
+ipcMain.handle('db:getStatsMetodoPago', (_, period) => dbService.getStatsMetodoPago(period));
+ipcMain.handle('db:getStatsCategorias', (_, period) => dbService.getStatsCategorias(period));
+ipcMain.handle('db:getStatsHoraPico', (_, period) => dbService.getStatsHoraPico(period));
+ipcMain.handle('db:getProductosBajoStock', (_, umbral) => dbService.getProductosBajoStock(umbral));

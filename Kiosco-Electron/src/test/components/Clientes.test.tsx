@@ -15,9 +15,11 @@ vi.mock('sweetalert2', () => ({
     },
 }));
 
+const mockSession = { id: 5, monto_inicial: 1000, fecha_apertura: '2026-05-16T10:00:00' };
+
 describe('Clientes component', () => {
     it('renders summary stats', async () => {
-        render(<Clientes />);
+        render(<Clientes session={null} />);
         await waitFor(() => {
             expect(screen.getByText('Total Clientes')).toBeInTheDocument();
             expect(screen.getByText('Deuda Total (A cobrar)')).toBeInTheDocument();
@@ -25,7 +27,7 @@ describe('Clientes component', () => {
     });
 
     it('shows empty-state message when no clients exist', async () => {
-        render(<Clientes />);
+        render(<Clientes session={null} />);
         await waitFor(() => {
             expect(screen.getByText(/No se encontraron clientes/i)).toBeInTheDocument();
         });
@@ -35,14 +37,14 @@ describe('Clientes component', () => {
         (window.api.db.getClients as any).mockResolvedValue([
             { id: 1, nombre: 'María López', telefono: '1122', saldo: 1500 },
         ]);
-        render(<Clientes />);
+        render(<Clientes session={null} />);
         await waitFor(() => {
             expect(screen.getByText('María López')).toBeInTheDocument();
         });
     });
 
     it('opens the new-client modal when the button is clicked', async () => {
-        render(<Clientes />);
+        render(<Clientes session={null} />);
         fireEvent.click(screen.getByRole('button', { name: /Nuevo Cliente/i }));
         expect(screen.getByRole('heading', { name: 'Nuevo Cliente' })).toBeInTheDocument();
     });
@@ -52,7 +54,7 @@ describe('Clientes component', () => {
         // Make the success Swal fire resolve immediately
         mockFire.mockResolvedValue({ isConfirmed: true });
 
-        render(<Clientes />);
+        render(<Clientes session={null} />);
         fireEvent.click(screen.getByRole('button', { name: /Nuevo Cliente/i }));
 
         // Scope inside the form to avoid picking up the search bar (also a textbox)
@@ -73,7 +75,7 @@ describe('Clientes component', () => {
         const client = { id: 1, nombre: 'Pedro', telefono: '', saldo: 500 };
         (window.api.db.getClients as any).mockResolvedValue([client]);
 
-        render(<Clientes />);
+        render(<Clientes session={null} />);
         await waitFor(() => screen.getByText('Pedro'));
 
         fireEvent.click(screen.getByTitle('Registrar Pago'));
@@ -101,7 +103,7 @@ describe('Clientes component', () => {
             { id: 1, nombre: 'Ana Torres', telefono: '', saldo: 0 },
             { id: 2, nombre: 'Beto Ruiz', telefono: '', saldo: 0 },
         ]);
-        render(<Clientes />);
+        render(<Clientes session={null} />);
         await waitFor(() => screen.getByText('Ana Torres'));
 
         const searchInput = screen.getByPlaceholderText(/Buscar cliente/i);
@@ -109,5 +111,57 @@ describe('Clientes component', () => {
 
         expect(screen.getByText('Ana Torres')).toBeInTheDocument();
         expect(screen.queryByText('Beto Ruiz')).not.toBeInTheDocument();
+    });
+
+    it('calls addMovimiento when session is open after a client payment', async () => {
+        const client = { id: 1, nombre: 'Laura', telefono: '', saldo: 300 };
+        (window.api.db.getClients as any).mockResolvedValue([client]);
+        mockFire.mockResolvedValue({ isConfirmed: true });
+
+        render(<Clientes session={mockSession} />);
+        await waitFor(() => screen.getByText('Laura'));
+
+        fireEvent.click(screen.getByTitle('Registrar Pago'));
+        await waitFor(() => screen.getByRole('heading', { name: 'Registrar Pago' }));
+
+        const input = screen.getByRole('spinbutton');
+        fireEvent.change(input, { target: { value: '300' } });
+        fireEvent.submit(input.closest('form')!);
+
+        await waitFor(() => {
+            expect(window.api.db.payClientDebt).toHaveBeenCalledWith(
+                expect.objectContaining({ clientId: 1, amount: 300 })
+            );
+            expect(window.api.db.addMovimiento).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tipo: 'ENTRADA',
+                    categoria: 'Cobro de Fiado',
+                    monto: 300,
+                    sesionId: mockSession.id,
+                    metodoPago: 'EFECTIVO',
+                })
+            );
+        });
+    });
+
+    it('does NOT call addMovimiento when session is null (caja cerrada)', async () => {
+        const client = { id: 1, nombre: 'Laura', telefono: '', saldo: 300 };
+        (window.api.db.getClients as any).mockResolvedValue([client]);
+        mockFire.mockResolvedValue({ isConfirmed: true });
+
+        render(<Clientes session={null} />);
+        await waitFor(() => screen.getByText('Laura'));
+
+        fireEvent.click(screen.getByTitle('Registrar Pago'));
+        await waitFor(() => screen.getByRole('heading', { name: 'Registrar Pago' }));
+
+        const input = screen.getByRole('spinbutton');
+        fireEvent.change(input, { target: { value: '300' } });
+        fireEvent.submit(input.closest('form')!);
+
+        await waitFor(() => {
+            expect(window.api.db.payClientDebt).toHaveBeenCalled();
+        });
+        expect(window.api.db.addMovimiento).not.toHaveBeenCalled();
     });
 });

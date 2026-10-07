@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, DollarSign, List, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
-import type { Client, Sale } from '../types/electron';
+import type { Client, Sale, SessionStatus } from '../types/electron';
 
 const MySwal = withReactContent(Swal);
 
-export default function Clientes() {
+interface ClientesProps {
+    session: SessionStatus | null;
+}
+
+export default function Clientes({ session }: ClientesProps) {
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -19,7 +23,6 @@ export default function Clientes() {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
-    const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'OTROS'>('EFECTIVO');
 
     // Modal state for History
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -92,21 +95,25 @@ export default function Clientes() {
             return;
         }
         try {
-            await window.api.db.payClientDebt({ 
-                clientId: selectedClient.id, 
-                amount: Number(paymentAmount),
-                metodoPago: paymentMethod
-            });
+            await window.api.db.payClientDebt({ clientId: selectedClient.id, amount: Number(paymentAmount) });
+            if (session) {
+                await window.api.db.addMovimiento({
+                    tipo: 'ENTRADA',
+                    categoria: 'Cobro de Fiado',
+                    monto: Number(paymentAmount),
+                    descripcion: `Pago de deuda - ${selectedClient.nombre}`,
+                    sesionId: session.id,
+                    metodoPago: 'EFECTIVO'
+                });
+            }
             setIsPaymentModalOpen(false);
             setPaymentAmount('');
             setSelectedClient(null);
-            setPaymentMethod('EFECTIVO');
             loadData();
             MySwal.fire({
                 icon: 'success',
-                title: 'Pago registrado',
-                text: 'El pago se descontó de la deuda y se sumó a la caja abierta.',
-                timer: 1800,
+                title: 'Pago registrado con éxito.',
+                timer: 1500,
                 showConfirmButton: false,
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)'
@@ -288,27 +295,6 @@ export default function Clientes() {
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Monto a pagar ($) *</label>
                                 <input type="number" step="0.01" min="0.01" max={selectedClient.saldo || 0} required value={paymentAmount} onChange={e => setPaymentAmount(e.target.value ? Number(e.target.value) : '')} style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Medio de cobro</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                    <button
-                                        type="button"
-                                        className={`btn ${paymentMethod === 'EFECTIVO' ? 'btn-primary' : ''}`}
-                                        onClick={() => setPaymentMethod('EFECTIVO')}
-                                        style={{ padding: '8px', border: '1px solid var(--border)', backgroundColor: paymentMethod === 'EFECTIVO' ? '#22c55e' : 'var(--bg-main)', color: 'white' }}
-                                    >
-                                        💵 Efectivo
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`btn ${paymentMethod === 'OTROS' ? 'btn-primary' : ''}`}
-                                        onClick={() => setPaymentMethod('OTROS')}
-                                        style={{ padding: '8px', border: '1px solid var(--border)', backgroundColor: paymentMethod === 'OTROS' ? '#3b82f6' : 'var(--bg-main)', color: 'white' }}
-                                    >
-                                        📱 QR / Transferencia
-                                    </button>
-                                </div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                                 <button type="button" className="btn" onClick={() => setIsPaymentModalOpen(false)} style={{ backgroundColor: 'transparent', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>Cancelar</button>
