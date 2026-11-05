@@ -4,38 +4,48 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0f172a;
+  color: #ededec;
+  background-color: #141615;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --bg-main: #0f172a;
-  --bg-card: #1e293b;
-  --bg-sidebar: #1e293b;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --border: #334155;
-  --accent: #8b5cf6;
-  --success: #22c55e;
+  --primary: #2d7a5f;
+  --primary-hover: #23634c;
+  --primary-light: #52a386;
+  --bg-main: #141615;
+  --bg-card: #1e2120;
+  --bg-sidebar: #191c1b;
+  --text-primary: #ededec;
+  --text-secondary: #9a9f9c;
+  --border: #2e3330;
+  --accent: #c4843d;
+  --success: #358a5f;
+  --success-light: #57ad82;
+  --warning: #cc8433;
+  --danger: #c44d4d;
+  --danger-light: #d96b6b;
 }
 
 body.light {
   color-scheme: light;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --bg-main: #f1f5f9;
+  --primary: #236b52;
+  --primary-hover: #1a523e;
+  --primary-light: #236b52;
+  --bg-main: #f3f4f3;
   --bg-card: #ffffff;
-  --bg-sidebar: #ffffff;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --border: #e2e8f0;
-  --accent: #6d28d9;
-  --success: #16a34a;
+  --bg-sidebar: #fafbfa;
+  --text-primary: #1c1f1d;
+  --text-secondary: #5c635f;
+  --border: #dcdfdd;
+  --accent: #a86c2a;
+  --success: #25734b;
+  --success-light: #25734b;
+  --warning: #b06b1e;
+  --danger: #b33b3b;
+  --danger-light: #b33b3b;
 }
 
 body {
@@ -80,9 +90,8 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
-  background: linear-gradient(135deg, #60a5fa, #a78bfa);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
 }
 
 .nav-item {
@@ -98,13 +107,22 @@ body {
 
 .nav-item:hover {
   color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+body.light .nav-item:hover {
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .nav-item.active {
   color: var(--text-primary);
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.1), transparent);
+  background-color: rgba(45, 122, 95, 0.14);
   border-left: 3px solid var(--primary);
+  font-weight: 600;
+}
+
+body.light .nav-item.active {
+  background-color: rgba(35, 107, 82, 0.1);
 }
 
 /* Main Content */
@@ -199,8 +217,8 @@ tr:hover td {
   font-weight: 600;
 }
 
-.badge-low { background-color: rgba(239, 68, 68, 0.15); color: #f87171; }
-.badge-ok { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; }
+.badge-low { background-color: rgba(196, 77, 77, 0.14); color: var(--danger-light); }
+.badge-ok { background-color: rgba(53, 138, 95, 0.14); color: var(--success-light); }
 
 /* Buttons */
 .btn {
@@ -227,8 +245,8 @@ tr:hover td {
   padding: 40px;
   border-radius: 24px;
   width: 500px;
-  border: 1px solid var(--primary);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
   position: relative;
 }
 
@@ -236,14 +254,12 @@ tr:hover td {
   font-size: 4.5rem;
   font-weight: 800;
   text-align: center;
-  color: #4ade80;
+  color: var(--primary-light);
   margin-bottom: 30px;
-  text-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
 }
 
 body.light .payment-modal-total {
-  color: #16a34a;
-  text-shadow: 0 0 10px rgba(22, 163, 74, 0.1);
+  color: var(--primary);
 }
 
 .payment-btn {
@@ -254,7 +270,7 @@ body.light .payment-modal-total {
   border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border-width: 2px;
+  border-width: 1.5px;
   border-style: solid;
   width: 100%;
   box-sizing: border-box;
@@ -262,79 +278,79 @@ body.light .payment-modal-total {
 }
 
 .payment-btn-efectivo {
-  background-color: rgba(34, 197, 94, 0.1);
-  border-color: #22c55e;
-  color: #f8fafc;
+  background-color: rgba(53, 138, 95, 0.1);
+  border-color: var(--success);
+  color: var(--text-primary);
 }
 body.light .payment-btn-efectivo {
-  background-color: rgba(34, 197, 94, 0.08);
-  border-color: #16a34a;
-  color: #15803d;
+  background-color: rgba(37, 115, 75, 0.08);
+  border-color: var(--success);
+  color: var(--success);
 }
 .payment-btn-efectivo:hover {
-  background-color: rgba(34, 197, 94, 0.2);
+  background-color: rgba(53, 138, 95, 0.18);
 }
 body.light .payment-btn-efectivo:hover {
-  background-color: rgba(34, 197, 94, 0.15);
+  background-color: rgba(37, 115, 75, 0.14);
 }
 
 .payment-btn-otros {
-  background-color: rgba(59, 130, 246, 0.1);
-  border-color: #3b82f6;
-  color: #f8fafc;
+  background-color: rgba(196, 132, 61, 0.1);
+  border-color: var(--accent);
+  color: var(--text-primary);
 }
 body.light .payment-btn-otros {
-  background-color: rgba(59, 130, 246, 0.08);
-  border-color: #2563eb;
-  color: #1d4ed8;
+  background-color: rgba(168, 108, 42, 0.08);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .payment-btn-otros:hover {
-  background-color: rgba(59, 130, 246, 0.2);
+  background-color: rgba(196, 132, 61, 0.18);
 }
 body.light .payment-btn-otros:hover {
-  background-color: rgba(59, 130, 246, 0.15);
+  background-color: rgba(168, 108, 42, 0.14);
 }
 
 .payment-btn-fiado {
-  background-color: rgba(245, 158, 11, 0.1);
-  border-color: #f59e0b;
-  color: #f8fafc;
+  background-color: rgba(204, 132, 51, 0.1);
+  border-color: var(--warning);
+  color: var(--text-primary);
 }
 .payment-btn-fiado-inactive {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: #334155;
-  color: rgba(248, 250, 252, 0.4);
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: var(--border);
+  color: var(--text-secondary);
   opacity: 0.5;
   cursor: not-allowed;
 }
 body.light .payment-btn-fiado {
-  background-color: rgba(245, 158, 11, 0.08);
-  border-color: #d97706;
-  color: #b45309;
+  background-color: rgba(176, 107, 30, 0.08);
+  border-color: var(--warning);
+  color: var(--warning);
 }
 body.light .payment-btn-fiado-inactive {
   background-color: rgba(0, 0, 0, 0.03);
-  border-color: #cbd5e1;
-  color: rgba(15, 23, 42, 0.4);
+  border-color: var(--border);
+  color: var(--text-secondary);
 }
 .payment-btn-fiado:hover:not(:disabled) {
-  background-color: rgba(245, 158, 11, 0.2);
+  background-color: rgba(204, 132, 51, 0.18);
 }
 body.light .payment-btn-fiado:hover:not(:disabled) {
-  background-color: rgba(245, 158, 11, 0.15);
+  background-color: rgba(176, 107, 30, 0.14);
 }
 
 .payment-badge {
-  background-color: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 500;
 }
 body.light .payment-badge {
-  background-color: rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  color: #475569;
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary);
 }

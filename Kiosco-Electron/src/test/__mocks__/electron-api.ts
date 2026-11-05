@@ -23,6 +23,7 @@ export const createApiMock = (): ElectronAPI => ({
         createSale: vi.fn().mockResolvedValue({ ventaId: 1 }),
 
         getReportDetail: vi.fn().mockResolvedValue([]),
+        getSessionFullDetail: vi.fn().mockResolvedValue({ productos: [], ventas: [], movimientos: [] }),
         getReportMonthly: vi.fn().mockResolvedValue([]),
         clearHistory: vi.fn().mockResolvedValue(undefined),
 
@@ -45,6 +46,7 @@ export const createApiMock = (): ElectronAPI => ({
 
         getStatsResumen: vi.fn().mockResolvedValue({ total_ventas: 0, ingresos: 0, ganancia: 0, ticket_promedio: 0 }),
         getTopProductos: vi.fn().mockResolvedValue([]),
+        getStatsPorDia: vi.fn().mockResolvedValue([]),
         getMenosVendidos: vi.fn().mockResolvedValue([]),
         getStatsMetodoPago: vi.fn().mockResolvedValue([]),
         getStatsCategorias: vi.fn().mockResolvedValue([]),

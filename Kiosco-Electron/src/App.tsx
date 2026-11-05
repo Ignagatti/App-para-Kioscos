@@ -66,7 +66,7 @@ function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header">
-          <ShoppingBag className="text-primary" size={28} />
+          <ShoppingBag color="var(--primary-light)" size={28} />
           <h1>KioskoGo</h1>
         </div>
 
@@ -108,16 +108,16 @@ function App() {
         <div style={{ marginTop: 'auto', padding: '0 24px' }}>
             <div style={{
                 padding: '12px',
-                backgroundColor: session ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                backgroundColor: session ? 'rgba(53, 138, 95, 0.12)' : 'rgba(196, 77, 77, 0.12)',
                 borderRadius: '8px',
                 fontSize: '0.8rem',
-                color: session ? '#4ade80' : '#f87171',
+                color: session ? 'var(--success-light)' : 'var(--danger-light)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 marginBottom: '15px'
             }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: session ? '#22c55e' : '#ef4444' }} />
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: session ? 'var(--success)' : 'var(--danger)' }} />
                 {session ? 'CAJA ABIERTA' : 'CAJA CERRADA'}
             </div>
             <div className="nav-item" style={{ paddingLeft: 0 }} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>

@@ -131,8 +131,8 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
             text: "Estás por cerrar el turno actual.",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#334155',
+            confirmButtonColor: '#c44d4d',
+            cancelButtonColor: '#3a3f3c',
             confirmButtonText: 'Sí, cerrar',
             cancelButtonText: 'Cancelar',
             background: 'var(--bg-card)',
@@ -206,13 +206,13 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                 {/* Panel Izquierdo: Estado y Acciones de Caja */}
                 <div style={{ flex: 1, backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
                     <h3 style={{ marginTop: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {session ? <Unlock color="#4ade80" /> : <Lock color="#f87171" />}
+                        {session ? <Unlock color="var(--success-light)" /> : <Lock color="var(--danger-light)" />}
                         Estado de Caja
                     </h3>
                     
                     {!session ? (
                         <form onSubmit={handleOpen} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            <div style={{ padding: '20px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', color: '#f87171', textAlign: 'center', marginBottom: '10px' }}>
+                            <div style={{ padding: '20px', backgroundColor: 'rgba(196, 77, 77, 0.12)', borderRadius: '8px', color: 'var(--danger-light)', textAlign: 'center', marginBottom: '10px' }}>
                                 La caja está cerrada. Debes abrirla para comenzar a operar.
                             </div>
                             <div>
@@ -227,7 +227,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                                     style={{ width: '100%', padding: '15px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '1.1rem', boxSizing: 'border-box' }}
                                 />
                             </div>
-                            <button type="submit" className="btn btn-primary" style={{ backgroundColor: '#22c55e', padding: '15px', fontSize: '1.1rem', marginTop: '10px' }}>
+                            <button type="submit" className="btn btn-primary" style={{ backgroundColor: 'var(--primary)', padding: '15px', fontSize: '1.1rem', marginTop: '10px' }}>
                                 Abrir Caja
                             </button>
                         </form>
@@ -235,21 +235,21 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                         <form onSubmit={handleClose} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-                                <div style={{ padding: '15px', backgroundColor: 'var(--bg-main)', border: '2px solid #4ade80', borderRadius: '12px', textAlign: 'center' }}>
+                                <div style={{ padding: '15px', backgroundColor: 'var(--bg-main)', border: '1.5px solid var(--success)', borderRadius: '12px', textAlign: 'center' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Efectivo</span>
-                                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#4ade80', margin: '5px 0' }}>
+                                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--success-light)', margin: '5px 0' }}>
                                         ${cajaTotal.efectivo.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </div>
                                 </div>
-                                <div style={{ padding: '15px', backgroundColor: 'var(--bg-main)', border: '2px solid #60a5fa', borderRadius: '12px', textAlign: 'center' }}>
+                                <div style={{ padding: '15px', backgroundColor: 'var(--bg-main)', border: '1.5px solid var(--accent)', borderRadius: '12px', textAlign: 'center' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Otros (QR/Tarj)</span>
-                                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#60a5fa', margin: '5px 0' }}>
+                                    <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--accent)', margin: '5px 0' }}>
                                         ${cajaTotal.otros.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </div>
                                 </div>
                             </div>
 
-                            <div style={{ padding: '15px', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: '8px', color: '#4ade80', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ padding: '15px', backgroundColor: 'rgba(53, 138, 95, 0.12)', borderRadius: '8px', color: 'var(--success-light)', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
                                     <strong>Caja Abierta</strong><br/>
                                     <span style={{ fontSize: '0.85rem' }}>Desde: {new Date(session.fecha_apertura).toLocaleString()}</span>
@@ -284,7 +284,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                                                     setMontoOtros(Math.round(sug.otros).toString());
                                                 }
                                             }}
-                                            style={{ fontSize: '0.75rem', backgroundColor: 'rgba(96, 165, 250, 0.1)', color: '#60a5fa', border: '1px solid #60a5fa', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                            style={{ fontSize: '0.75rem', backgroundColor: 'rgba(45, 122, 95, 0.12)', color: 'var(--primary-light)', border: '1px solid var(--primary)', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer' }}
                                         >
                                             Sugerir montos
                                         </button>
@@ -299,7 +299,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                                     />
                                 </div>
                             </div>
-                            <button type="submit" className="btn btn-primary" style={{ backgroundColor: '#ef4444', padding: '15px', fontSize: '1.1rem' }}>
+                            <button type="submit" className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', padding: '15px', fontSize: '1.1rem' }}>
                                 Cerrar Caja
                             </button>
                         </form>
@@ -310,7 +310,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                 <div style={{ flex: 1, backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <DollarSign color="#60a5fa" />
+                            <DollarSign color="var(--primary-light)" />
                             Movimientos de Dinero
                         </h3>
                         <button 
@@ -349,10 +349,10 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                                                 borderRadius: '20px', 
                                                 fontSize: '0.75rem', 
                                                 fontWeight: 700,
-                                                backgroundColor: mov.tipo === 'ENTRADA' ? 'rgba(34, 197, 94, 0.1)' : 
-                                                                mov.tipo === 'VENTA' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                color: mov.tipo === 'ENTRADA' ? '#22c55e' : 
-                                                       mov.tipo === 'VENTA' ? '#3b82f6' : '#ef4444'
+                                                backgroundColor: mov.tipo === 'ENTRADA' ? 'rgba(53, 138, 95, 0.14)' : 
+                                                                mov.tipo === 'VENTA' ? 'rgba(196, 132, 61, 0.14)' : 'rgba(196, 77, 77, 0.14)',
+                                                color: mov.tipo === 'ENTRADA' ? 'var(--success-light)' : 
+                                                       mov.tipo === 'VENTA' ? 'var(--accent)' : 'var(--danger-light)'
                                             }}>
                                                 {mov.tipo}
                                             </span>
@@ -362,7 +362,7 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                                         </td>
                                         <td>{mov.categoria}</td>
                                         <td>{mov.descripcion}</td>
-                                        <td style={{ textAlign: 'right', fontWeight: 700, color: mov.tipo === 'SALIDA' ? '#ef4444' : '#22c55e' }}>
+                                        <td style={{ textAlign: 'right', fontWeight: 700, color: mov.tipo === 'SALIDA' ? 'var(--danger-light)' : 'var(--success-light)' }}>
                                             {mov.tipo === 'SALIDA' ? '-' : '+'}${mov.monto.toLocaleString()}
                                         </td>
                                     </tr>

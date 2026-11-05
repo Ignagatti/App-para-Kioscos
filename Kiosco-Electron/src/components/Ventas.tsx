@@ -131,8 +131,8 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                 showCancelButton: true,
                 confirmButtonText: 'Confirmar',
                 cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#3b82f6',
-                cancelButtonColor: '#334155',
+                confirmButtonColor: '#2d7a5f',
+                cancelButtonColor: '#3a3f3c',
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)',
                 inputAttributes: { min: '0', step: '1' },
@@ -220,7 +220,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                     showCancelButton: true,
                     confirmButtonText: 'Completar Venta',
                     cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#22c55e',
+                    confirmButtonColor: '#358a5f',
                     background: 'var(--bg-card)',
                     color: 'var(--text-primary)',
                 });
@@ -388,8 +388,8 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                 inputLabel: `Ingresa los gramos de ${product.nombre}`,
                 inputPlaceholder: 'Ej: 250',
                 showCancelButton: true,
-                confirmButtonColor: '#3b82f6',
-                cancelButtonColor: '#334155',
+                confirmButtonColor: '#2d7a5f',
+                cancelButtonColor: '#3a3f3c',
                 background: 'var(--bg-card)',
                 color: 'var(--text-primary)',
                 inputAttributes: {
@@ -461,10 +461,10 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                         onChange={(e) => setSaleSearch(e.target.value)}
                         onKeyDown={handleSaleSearch}
                         autoFocus
-                        style={{ width: '100%', padding: '20px 20px 20px 55px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--primary)', borderRadius: '16px', color: 'var(--text-primary)', fontSize: '1.25rem', boxShadow: '0 0 15px rgba(59, 130, 246, 0.1)', boxSizing: 'border-box' }}
+                        style={{ width: '100%', padding: '20px 20px 20px 55px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', color: 'var(--text-primary)', fontSize: '1.25rem', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)', boxSizing: 'border-box' }}
                     />
                     {searchResults.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, width: '100%', backgroundColor: 'var(--bg-card)', border: '1px solid var(--primary)', borderRadius: '12px', marginTop: '10px', zIndex: 10, maxHeight: '300px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+                        <div style={{ position: 'absolute', top: '100%', left: 0, width: '100%', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', marginTop: '10px', zIndex: 10, maxHeight: '300px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.45)' }}>
                             {searchResults.map((p, idx) => (
                                 <div 
                                     key={p.id} 
@@ -476,15 +476,15 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                         display: 'flex', 
                                         justifyContent: 'space-between', 
                                         alignItems: 'center',
-                                        backgroundColor: idx === highlightedIndex ? 'rgba(59, 130, 246, 0.15)' : 'transparent'
+                                        backgroundColor: idx === highlightedIndex ? 'rgba(45, 122, 95, 0.16)' : 'transparent'
                                     }}
                                     onMouseOver={() => setHighlightedIndex(idx)}
                                 >
                                     <div>
-                                        <div style={{ fontWeight: 600 }}>{p.nombre} {p.es_por_kilo ? <span style={{fontSize: '0.75rem', color: '#f59e0b'}}>(Peso)</span> : ''}</div>
+                                        <div style={{ fontWeight: 600 }}>{p.nombre} {p.es_por_kilo ? <span style={{fontSize: '0.75rem', color: 'var(--warning)'}}>(Peso)</span> : ''}</div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{p.codigo_barras}</div>
                                     </div>
-                                    <div style={{ fontWeight: 700, color: '#4ade80' }}>
+                                    <div style={{ fontWeight: 700, color: 'var(--success-light)' }}>
                                         ${(p.es_por_kilo ? (p.precio_por_kilo || p.precio) : p.precio || 0).toLocaleString()} {p.es_por_kilo ? '/kg' : ''}
                                     </div>
                                 </div>
@@ -531,9 +531,9 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                             )}
                                         </td>
                                         <td style={{ textAlign: 'right' }}>${(item.precio || 0).toLocaleString()} {item.es_por_kilo ? '/kg' : ''}</td>
-                                        <td style={{ fontWeight: 700, color: '#60a5fa', textAlign: 'right' }}>${(item.subtotal || 0).toLocaleString()}</td>
+                                        <td style={{ fontWeight: 700, color: 'var(--primary-light)', textAlign: 'right' }}>${(item.subtotal || 0).toLocaleString()}</td>
                                         <td style={{ textAlign: 'center' }}>
-                                            <button className="btn" style={{ padding: '6px', color: '#f87171', backgroundColor: 'transparent' }} onClick={() => removeFromCart(item.cartId || item.id)}>
+                                            <button className="btn" style={{ padding: '6px', color: 'var(--danger-light)', backgroundColor: 'transparent' }} onClick={() => removeFromCart(item.cartId || item.id)}>
                                                 <Trash2 size={18} />
                                             </button>
                                         </td>
@@ -546,8 +546,8 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
             </div>
 
             <div style={{ width: '380px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div className="stat-card" style={{ background: 'linear-gradient(135deg, #1e40af, #6d28d9)', border: 'none', padding: '30px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
-                    <span className="label" style={{ color: 'rgba(255,255,255,0.6)', letterSpacing: '1px', fontWeight: 600 }}>TOTAL A PAGAR</span>
+                <div className="stat-card" style={{ backgroundColor: 'var(--primary)', border: '1px solid var(--border)', padding: '30px', boxShadow: '0 6px 20px rgba(0,0,0,0.2)' }}>
+                    <span className="label" style={{ color: 'rgba(255,255,255,0.75)', letterSpacing: '1px', fontWeight: 600 }}>TOTAL A PAGAR</span>
                     <span className="value" style={{ fontSize: '3.5rem', marginTop: '10px', color: 'white' }}>${(totalCart || 0).toLocaleString()}</span>
                 </div>
                 
@@ -575,7 +575,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                         disabled={cart.length === 0 || !session}
                         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '15px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', opacity: (cart.length === 0 || !session) ? 0.5 : 1 }}
                     >
-                        <Banknote size={24} color="#4ade80" />
+                        <Banknote size={24} color="var(--success-light)" />
                         <span>Efectivo</span>
                     </button>
                     <button 
@@ -584,7 +584,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                         disabled={cart.length === 0 || !session}
                         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '15px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', opacity: (cart.length === 0 || !session) ? 0.5 : 1 }}
                     >
-                        <CreditCard size={24} color="#60a5fa" />
+                        <CreditCard size={24} color="var(--accent)" />
                         <span>Otros</span>
                     </button>
                     <button 
@@ -593,13 +593,13 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                         disabled={cart.length === 0 || !session}
                         style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '15px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', opacity: (cart.length === 0 || !session) ? 0.5 : 1 }}
                     >
-                        <User size={20} color="#f59e0b" />
+                        <User size={20} color="var(--warning)" />
                         <span>Anotar en Fiado</span>
                     </button>
                 </div>
 
                 {!session && (
-                    <div style={{ color: '#f87171', fontSize: '0.875rem', textAlign: 'center', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px' }}>
+                    <div style={{ color: 'var(--danger-light)', fontSize: '0.875rem', textAlign: 'center', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', padding: '10px', backgroundColor: 'rgba(196, 77, 77, 0.12)', borderRadius: '8px' }}>
                         <AlertCircle size={16} />
                         Debés abrir caja para realizar ventas
                     </div>
@@ -621,7 +621,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                 className="payment-btn payment-btn-efectivo"
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ backgroundColor: '#22c55e', padding: '10px', borderRadius: '12px', color: 'white' }}><Banknote size={24} /></div>
+                                    <div style={{ backgroundColor: 'var(--success)', padding: '10px', borderRadius: '12px', color: 'white' }}><Banknote size={24} /></div>
                                     <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Efectivo</span>
                                 </div>
                                 <span className="payment-badge">Presioná [1] o [Enter]</span>
@@ -632,7 +632,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                 className="payment-btn payment-btn-otros"
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ backgroundColor: '#3b82f6', padding: '10px', borderRadius: '12px', color: 'white' }}><CreditCard size={24} /></div>
+                                    <div style={{ backgroundColor: 'var(--accent)', padding: '10px', borderRadius: '12px', color: 'white' }}><CreditCard size={24} /></div>
                                     <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Otros (Débito/QR)</span>
                                 </div>
                                 <span className="payment-badge">Presioná [2]</span>
@@ -644,7 +644,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                 className={selectedClient ? "payment-btn payment-btn-fiado" : "payment-btn payment-btn-fiado-inactive"}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ backgroundColor: selectedClient ? '#f59e0b' : '#64748b', padding: '10px', borderRadius: '12px', color: 'white' }}><User size={24} /></div>
+                                    <div style={{ backgroundColor: selectedClient ? 'var(--warning)' : '#525754', padding: '10px', borderRadius: '12px', color: 'white' }}><User size={24} /></div>
                                     <span style={{ fontSize: '1.2rem', fontWeight: 600 }}>Anotar Fiado</span>
                                 </div>
                                 <span className="payment-badge">Presioná [3]</span>
@@ -681,7 +681,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                             key={c.id} 
                                             style={{ 
                                                 padding: '12px 20px', 
-                                                backgroundColor: idx === highlightedClientIndex ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                                backgroundColor: idx === highlightedClientIndex ? 'rgba(45, 122, 95, 0.18)' : 'transparent',
                                                 borderBottom: '1px solid var(--border)',
                                                 cursor: 'pointer'
                                             }}
@@ -699,7 +699,7 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                                         <div 
                                             style={{ 
                                                 padding: '12px 20px', 
-                                                backgroundColor: highlightedClientIndex === filteredClientsForSearch.length ? 'rgba(74, 222, 128, 0.1)' : 'transparent',
+                                                backgroundColor: highlightedClientIndex === filteredClientsForSearch.length ? 'rgba(53, 138, 95, 0.14)' : 'transparent',
                                                 borderTop: filteredClientsForSearch.length > 0 ? '1px dashed var(--border)' : 'none',
                                                 cursor: 'pointer',
                                                 textAlign: 'center'

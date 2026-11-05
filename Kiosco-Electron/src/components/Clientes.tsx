@@ -141,8 +141,8 @@ export default function Clientes({ session }: ClientesProps) {
             text: "Se borrará el cliente y se desvincularán sus deudas pasadas. Esta acción no se puede deshacer.",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#334155',
+            confirmButtonColor: '#c44d4d',
+            cancelButtonColor: '#3a3f3c',
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
             background: 'var(--bg-card)',
@@ -181,7 +181,7 @@ export default function Clientes({ session }: ClientesProps) {
                 </div>
                 <div className="stat-card">
                     <span className="label">Deuda Total (A cobrar)</span>
-                    <span className="value" style={{ color: '#f59e0b' }}>
+                    <span className="value" style={{ color: 'var(--warning)' }}>
                         ${clients.reduce((acc, c) => acc + (c.saldo || 0), 0).toLocaleString()}
                     </span>
                 </div>
@@ -223,14 +223,14 @@ export default function Clientes({ session }: ClientesProps) {
                             <tr key={client.id}>
                                 <td style={{ fontWeight: 600 }}>{client.nombre}</td>
                                 <td>{client.telefono || '-'}</td>
-                                <td style={{ fontWeight: 700, color: (client.saldo || 0) > 0 ? '#f87171' : '#4ade80', textAlign: 'right' }}>
+                                <td style={{ fontWeight: 700, color: (client.saldo || 0) > 0 ? 'var(--danger-light)' : 'var(--success-light)', textAlign: 'right' }}>
                                     ${(client.saldo || 0).toLocaleString()}
                                 </td>
                                 <td style={{ textAlign: 'center' }}>
                                     <button 
                                         className="btn" 
                                         title="Registrar Pago"
-                                        style={{ padding: '6px', backgroundColor: 'transparent', color: '#4ade80' }} 
+                                        style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--success-light)' }} 
                                         onClick={() => { setSelectedClient(client); setIsPaymentModalOpen(true); }}
                                     >
                                         <DollarSign size={18} />
@@ -238,7 +238,7 @@ export default function Clientes({ session }: ClientesProps) {
                                     <button 
                                         className="btn" 
                                         title="Ver Historial de Fiados"
-                                        style={{ padding: '6px', backgroundColor: 'transparent', color: '#60a5fa' }} 
+                                        style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--primary-light)' }} 
                                         onClick={() => viewHistory(client)}
                                     >
                                         <List size={18} />
@@ -246,7 +246,7 @@ export default function Clientes({ session }: ClientesProps) {
                                     <button 
                                         className="btn" 
                                         title="Eliminar Cliente"
-                                        style={{ padding: '6px', backgroundColor: 'transparent', color: '#f87171' }} 
+                                        style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--danger-light)' }} 
                                         onClick={() => handleDeleteClient(client.id)}
                                     >
                                         <Trash2 size={18} />
@@ -290,7 +290,7 @@ export default function Clientes({ session }: ClientesProps) {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
                     <div style={{ backgroundColor: 'var(--bg-card)', padding: '30px', borderRadius: '16px', width: '400px', border: '1px solid var(--border)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
                         <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.5rem', fontWeight: 600 }}>Registrar Pago</h3>
-                        <p style={{ marginBottom: '20px', color: 'var(--text-secondary)' }}>Cliente: <strong style={{ color: 'var(--text-primary)' }}>{selectedClient.nombre}</strong><br/>Deuda actual: <strong style={{ color: '#f87171' }}>${(selectedClient.saldo || 0).toLocaleString()}</strong></p>
+                        <p style={{ marginBottom: '20px', color: 'var(--text-secondary)' }}>Cliente: <strong style={{ color: 'var(--text-primary)' }}>{selectedClient.nombre}</strong><br/>Deuda actual: <strong style={{ color: 'var(--danger-light)' }}>${(selectedClient.saldo || 0).toLocaleString()}</strong></p>
                         <form onSubmit={handlePayment} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Monto a pagar ($) *</label>
@@ -298,7 +298,7 @@ export default function Clientes({ session }: ClientesProps) {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                                 <button type="button" className="btn" onClick={() => setIsPaymentModalOpen(false)} style={{ backgroundColor: 'transparent', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>Cancelar</button>
-                                <button type="submit" className="btn btn-primary" style={{ backgroundColor: '#22c55e' }}>Confirmar Pago</button>
+                                <button type="submit" className="btn btn-primary" style={{ backgroundColor: 'var(--primary)' }}>Confirmar Pago</button>
                             </div>
                         </form>
                     </div>

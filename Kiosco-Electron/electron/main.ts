@@ -118,6 +118,7 @@ ipcMain.handle('db:createSale', (_, data) => {
 
 // ── Reportes ──
 ipcMain.handle('db:getReportDetail', () => dbService.getReportDetail());
+ipcMain.handle('db:getSessionFullDetail', (_, sessionId) => dbService.getSessionFullDetail(sessionId));
 ipcMain.handle('db:getReportMonthly', () => dbService.getReportMonthly());
 ipcMain.handle('db:clearHistory', () => dbService.clearHistory());
 
@@ -145,6 +146,7 @@ ipcMain.handle('db:updateProductSuppliers', (_, data) => dbService.updateProduct
 // ── Estadísticas ──
 ipcMain.handle('db:getStatsResumen', (_, period) => dbService.getStatsResumen(period));
 ipcMain.handle('db:getTopProductos', (_, period) => dbService.getTopProductos(period));
+ipcMain.handle('db:getStatsPorDia', (_, period) => dbService.getStatsPorDia(period));
 ipcMain.handle('db:getMenosVendidos', (_, period) => dbService.getMenosVendidos(period));
 ipcMain.handle('db:getStatsMetodoPago', (_, period) => dbService.getStatsMetodoPago(period));
 ipcMain.handle('db:getStatsCategorias', (_, period) => dbService.getStatsCategorias(period));

@@ -145,8 +145,8 @@ export default function Inventario() {
             text: "No podrás revertir esto",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#334155',
+            confirmButtonColor: '#c44d4d',
+            cancelButtonColor: '#3a3f3c',
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
             background: 'var(--bg-card)',
@@ -174,8 +174,8 @@ export default function Inventario() {
             inputLabel: 'Nombre de la categoría',
             inputPlaceholder: 'Ej: Fiambres, Bebidas...',
             showCancelButton: true,
-            confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#334155',
+            confirmButtonColor: '#2d7a5f',
+            cancelButtonColor: '#3a3f3c',
             background: 'var(--bg-card)',
             color: 'var(--text-primary)'
         });
@@ -248,13 +248,13 @@ export default function Inventario() {
                 </div>
                 <div className="stat-card">
                     <span className="label">Stock Bajo</span>
-                    <span className="value" style={{ color: '#f87171' }}>
+                    <span className="value" style={{ color: 'var(--danger-light)' }}>
                         {products.filter(p => (p.stock || 0) < 5).length}
                     </span>
                 </div>
                 <div className="stat-card">
                     <span className="label">Valor Inventario (Costo)</span>
-                    <span className="value" style={{ color: '#f59e0b' }}>
+                    <span className="value" style={{ color: 'var(--warning)' }}>
                         ${Math.round(products.reduce((acc, p) => {
                             return acc + ((p.precio_costo || 0) * (p.stock || 0));
                         }, 0)).toLocaleString()}
@@ -262,7 +262,7 @@ export default function Inventario() {
                 </div>
                 <div className="stat-card">
                     <span className="label">Valor Inventario (Precio Venta)</span>
-                    <span className="value" style={{ color: '#4ade80' }}>
+                    <span className="value" style={{ color: 'var(--success-light)' }}>
                         ${Math.round(products.reduce((acc, p) => {
                             const precioEfectivo = p.es_por_kilo ? (p.precio_por_kilo || 0) : (p.precio || 0);
                             return acc + (precioEfectivo * (p.stock || 0));
@@ -310,11 +310,11 @@ export default function Inventario() {
                         ) : filteredInventory.map(product => (
                             <tr key={product.id}>
                                 <td style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{product.codigo_barras}</td>
-                                <td style={{ fontWeight: 600 }}>{product.nombre} {product.es_por_kilo ? <span style={{fontSize: '0.75rem', color: '#f59e0b'}}>(Fiambre/Peso)</span> : ''}</td>
+                                <td style={{ fontWeight: 600 }}>{product.nombre} {product.es_por_kilo ? <span style={{fontSize: '0.75rem', color: 'var(--warning)'}}>(Fiambre/Peso)</span> : ''}</td>
                                 <td>{product.categoria || '-'}</td>
                                 <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{product.proveedores || '-'}</td>
                                 <td style={{ color: 'var(--text-secondary)' }}>${(product.precio_costo || 0).toLocaleString()}</td>
-                                <td style={{ fontWeight: 700, color: '#60a5fa' }}>
+                                <td style={{ fontWeight: 700, color: 'var(--primary-light)' }}>
                                     ${(product.es_por_kilo ? (product.precio_por_kilo || 0) : (product.precio || 0)).toLocaleString()}
                                     {product.es_por_kilo ? <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>/kg</span> : ''}
                                 </td>
@@ -325,10 +325,10 @@ export default function Inventario() {
                                     </span>
                                 </td>
                                 <td style={{ textAlign: 'center' }}>
-                                    <button className="btn" style={{ padding: '6px', backgroundColor: 'transparent', color: '#60a5fa' }} onClick={() => openModal(product)}>
+                                    <button className="btn" style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--primary-light)' }} onClick={() => openModal(product)}>
                                         <Edit size={18} />
                                     </button>
-                                    <button className="btn" style={{ padding: '6px', backgroundColor: 'transparent', color: '#f87171' }} onClick={() => handleDelete(product.id)}>
+                                    <button className="btn" style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--danger-light)' }} onClick={() => handleDelete(product.id)}>
                                         <Trash2 size={18} />
                                     </button>
                                 </td>
@@ -381,7 +381,7 @@ export default function Inventario() {
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', backgroundColor: 'rgba(204, 132, 51, 0.12)', borderRadius: '8px' }}>
                                 <input 
                                     type="checkbox" 
                                     id="es_por_kilo"
@@ -389,7 +389,7 @@ export default function Inventario() {
                                     onChange={e => setEditingProduct(prev => ({ ...prev, es_por_kilo: e.target.checked ? 1 : 0 }))}
                                     style={{ width: '20px', height: '20px' }}
                                 />
-                                <label htmlFor="es_por_kilo" style={{ color: '#f59e0b', fontWeight: 600, cursor: 'pointer' }}>Vender por peso (Ej: Fiambres, Pan)</label>
+                                <label htmlFor="es_por_kilo" style={{ color: 'var(--warning)', fontWeight: 600, cursor: 'pointer' }}>Vender por peso (Ej: Fiambres, Pan)</label>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>

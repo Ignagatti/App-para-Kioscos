@@ -111,6 +111,7 @@ electron_1.ipcMain.handle('db:createSale', (_, data) => {
 });
 // ── Reportes ──
 electron_1.ipcMain.handle('db:getReportDetail', () => db_1.dbService.getReportDetail());
+electron_1.ipcMain.handle('db:getSessionFullDetail', (_, sessionId) => db_1.dbService.getSessionFullDetail(sessionId));
 electron_1.ipcMain.handle('db:getReportMonthly', () => db_1.dbService.getReportMonthly());
 electron_1.ipcMain.handle('db:clearHistory', () => db_1.dbService.clearHistory());
 // ── Clientes ──
@@ -134,6 +135,7 @@ electron_1.ipcMain.handle('db:updateProductSuppliers', (_, data) => db_1.dbServi
 // ── Estadísticas ──
 electron_1.ipcMain.handle('db:getStatsResumen', (_, period) => db_1.dbService.getStatsResumen(period));
 electron_1.ipcMain.handle('db:getTopProductos', (_, period) => db_1.dbService.getTopProductos(period));
+electron_1.ipcMain.handle('db:getStatsPorDia', (_, period) => db_1.dbService.getStatsPorDia(period));
 electron_1.ipcMain.handle('db:getMenosVendidos', (_, period) => db_1.dbService.getMenosVendidos(period));
 electron_1.ipcMain.handle('db:getStatsMetodoPago', (_, period) => db_1.dbService.getStatsMetodoPago(period));
 electron_1.ipcMain.handle('db:getStatsCategorias', (_, period) => db_1.dbService.getStatsCategorias(period));

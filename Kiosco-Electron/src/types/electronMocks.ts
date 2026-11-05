@@ -42,6 +42,7 @@ export const mockElectronAPI: ElectronAPI = {
         createSale: async () => ({ ventaId: 1 }),
         
         getReportDetail: async () => [],
+        getSessionFullDetail: async () => ({ productos: [], ventas: [], movimientos: [] }),
         getReportMonthly: async () => [],
         clearHistory: async () => {},
         
@@ -56,6 +57,7 @@ export const mockElectronAPI: ElectronAPI = {
         getMovimientos: async () => [],
         getStatsResumen: async () => ({ total_ventas: 0, ingresos: 0, ganancia: 0, ticket_promedio: 0 }),
         getTopProductos: async () => [],
+        getStatsPorDia: async () => [],
         getMenosVendidos: async () => [],
         getStatsMetodoPago: async () => [],
         getStatsCategorias: async () => [],

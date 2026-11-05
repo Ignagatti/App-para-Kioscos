@@ -113,7 +113,7 @@ export default function Proveedores() {
             text: "Se eliminará el proveedor y sus vínculos con los productos.",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#ef4444',
+            confirmButtonColor: '#c44d4d',
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
             background: 'var(--bg-card)',
@@ -209,7 +209,7 @@ export default function Proveedores() {
                                     <button 
                                         className="btn" 
                                         title="Ver Productos"
-                                        style={{ padding: '6px', backgroundColor: 'transparent', color: '#60a5fa' }} 
+                                        style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--primary-light)' }} 
                                         onClick={() => handleViewProducts(supplier)}
                                     >
                                         <Package size={18} />
@@ -217,7 +217,7 @@ export default function Proveedores() {
                                     <button 
                                         className="btn" 
                                         title="Editar Proveedor"
-                                        style={{ padding: '6px', backgroundColor: 'transparent', color: '#f59e0b' }} 
+                                        style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--warning)' }} 
                                         onClick={() => handleOpenEditModal(supplier)}
                                     >
                                         <Edit2 size={18} />
@@ -225,7 +225,7 @@ export default function Proveedores() {
                                     <button 
                                         className="btn" 
                                         title="Eliminar Proveedor"
-                                        style={{ padding: '6px', backgroundColor: 'transparent', color: '#f87171' }} 
+                                        style={{ padding: '6px', backgroundColor: 'transparent', color: 'var(--danger-light)' }} 
                                         onClick={() => handleDelete(supplier.id)}
                                     >
                                         <Trash2 size={18} />
@@ -322,11 +322,11 @@ export default function Proveedores() {
                                             <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{product.codigo_barras}</td>
                                             <td style={{ fontWeight: 600 }}>{product.nombre}</td>
                                             <td><span className="badge">{product.categoria}</span></td>
-                                            <td style={{ textAlign: 'right', fontWeight: 600, color: product.stock <= 5 ? '#f87171' : 'inherit' }}>
+                                            <td style={{ textAlign: 'right', fontWeight: 600, color: product.stock <= 5 ? 'var(--danger-light)' : 'inherit' }}>
                                                 {product.es_por_kilo ? parseFloat((product.stock || 0).toFixed(3)) : (product.stock || 0)} {product.es_por_kilo ? 'kg' : 'u'}
                                             </td>
                                             <td style={{ textAlign: 'right', fontWeight: 700 }}>${(product.precio_costo || 0).toLocaleString()}</td>
-                                            <td style={{ textAlign: 'right', fontWeight: 700, color: '#60a5fa' }}>${product.precio.toLocaleString()}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary-light)' }}>${product.precio.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>

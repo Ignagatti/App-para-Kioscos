@@ -33,20 +33,58 @@ export interface Sale {
 }
 
 export interface SaleDetail {
+    id?: number;
+    venta_id?: number;
     nombre: string;
     precio: number;
+    costo_unitario?: number;
     cantidad: number;
     subtotal: number;
 }
 
 export interface ReportDetail {
     id: number;
+    monto_inicial: number;
     fecha_apertura: string;
-    fecha_cierre: string;
+    fecha_cierre: string | null;
+    estado?: string;
     monto_final_efectivo: number;
     monto_final_otros: number;
     total_ventas: number;
+    cantidad_ventas?: number;
+    unidades_vendidas?: number;
+    ventas_efectivo?: number;
+    ventas_otros?: number;
+    ventas_fiado?: number;
+    entradas_manuales?: number;
+    salidas_manuales?: number;
+    entradas_efectivo?: number;
+    salidas_efectivo?: number;
+    costo_total?: number;
     ganancia: number;
+    top_producto?: string | null;
+}
+
+export interface SessionProductSold {
+    nombre: string;
+    categoria: string;
+    es_por_kilo: number;
+    cantidad_total: number;
+    precio_unitario: number;
+    subtotal_total: number;
+    costo_total: number;
+    ganancia_total: number;
+}
+
+export interface SessionSaleWithDetails extends Sale {
+    cliente_nombre?: string | null;
+    detalles: SaleDetail[];
+}
+
+export interface SessionFullDetail {
+    productos: SessionProductSold[];
+    ventas: SessionSaleWithDetails[];
+    movimientos: Movement[];
 }
 
 export interface ReportMonthly {
@@ -91,14 +129,35 @@ export interface StatsResumen {
     ingresos: number;
     ganancia: number;
     ticket_promedio: number;
+    ticket_maximo?: number;
+    items_promedio?: number;
+    unidades_totales?: number;
+    costo_mercaderia?: number;
+    gastos_salidas?: number;
+    ingresos_extra?: number;
+    dias_activos?: number;
+    deuda_clientes_total?: number;
+    valor_inventario_venta?: number;
+    valor_inventario_costo?: number;
 }
 
 export interface TopProducto {
     nombre: string;
     cantidad_total: number;
     ingresos_total: number;
+    costo_total?: number;
     ganancia_total: number;
+    tickets_count?: number;
     es_por_kilo: number;
+    stock_actual?: number;
+}
+
+export interface StatsPorDia {
+    fecha: string;
+    dia_semana: number;
+    cantidad_ventas: number;
+    ingresos: number;
+    ganancia: number;
 }
 
 export interface StatsMetodoPago {
@@ -124,8 +183,10 @@ export interface ProductoBajoStock {
     nombre: string;
     stock: number;
     precio: number;
+    precio_costo?: number;
     categoria: string;
     es_por_kilo: number;
+    vendidos_mes?: number;
 }
 
 export interface ElectronAPI {
@@ -150,6 +211,7 @@ export interface ElectronAPI {
         createSale: (data: any) => Promise<{ ventaId: number }>;
         
         getReportDetail: () => Promise<ReportDetail[]>;
+        getSessionFullDetail: (sessionId: number) => Promise<SessionFullDetail>;
         getReportMonthly: () => Promise<ReportMonthly[]>;
         clearHistory: () => Promise<void>;
         
@@ -172,6 +234,7 @@ export interface ElectronAPI {
 
         getStatsResumen: (period: string) => Promise<StatsResumen>;
         getTopProductos: (period: string) => Promise<TopProducto[]>;
+        getStatsPorDia: (period: string) => Promise<StatsPorDia[]>;
         getMenosVendidos: (period: string) => Promise<TopProducto[]>;
         getStatsMetodoPago: (period: string) => Promise<StatsMetodoPago[]>;
         getStatsCategorias: (period: string) => Promise<StatsCategoria[]>;

@@ -278,13 +278,59 @@ exports.dbService = {
         });
         return txn();
     },
-    // ── Reportes ──
+    // ── Reportes / Cierres de Caja ──
     getReportDetail: () => exports.db.prepare(`
         SELECT s.*, 
         COALESCE((SELECT SUM(total) FROM ventas WHERE sesion_id = s.id), 0) as total_ventas,
-        COALESCE((SELECT SUM(vd.subtotal - (vd.costo_unitario * vd.cantidad)) FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id WHERE v.sesion_id = s.id), 0) as ganancia
-        FROM sesiones_caja s WHERE estado = 'CERRADA' ORDER BY fecha_cierre DESC
+        COALESCE((SELECT COUNT(*) FROM ventas WHERE sesion_id = s.id), 0) as cantidad_ventas,
+        COALESCE((SELECT SUM(vd.cantidad) FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id WHERE v.sesion_id = s.id), 0) as unidades_vendidas,
+        COALESCE((SELECT SUM(total) FROM ventas WHERE sesion_id = s.id AND UPPER(metodo_pago) = 'EFECTIVO'), 0) as ventas_efectivo,
+        COALESCE((SELECT SUM(total) FROM ventas WHERE sesion_id = s.id AND UPPER(metodo_pago) = 'OTROS'), 0) as ventas_otros,
+        COALESCE((SELECT SUM(total) FROM ventas WHERE sesion_id = s.id AND UPPER(metodo_pago) = 'FIADO'), 0) as ventas_fiado,
+        COALESCE((SELECT SUM(monto) FROM movimientos_caja WHERE sesion_id = s.id AND UPPER(tipo) = 'ENTRADA'), 0) as entradas_manuales,
+        COALESCE((SELECT SUM(monto) FROM movimientos_caja WHERE sesion_id = s.id AND UPPER(tipo) = 'SALIDA'), 0) as salidas_manuales,
+        COALESCE((SELECT SUM(monto) FROM movimientos_caja WHERE sesion_id = s.id AND UPPER(tipo) = 'ENTRADA' AND UPPER(COALESCE(metodo_pago, 'EFECTIVO')) = 'EFECTIVO'), 0) as entradas_efectivo,
+        COALESCE((SELECT SUM(monto) FROM movimientos_caja WHERE sesion_id = s.id AND UPPER(tipo) = 'SALIDA' AND UPPER(COALESCE(metodo_pago, 'EFECTIVO')) = 'EFECTIVO'), 0) as salidas_efectivo,
+        COALESCE((SELECT SUM(vd.costo_unitario * vd.cantidad) FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id WHERE v.sesion_id = s.id), 0) as costo_total,
+        COALESCE((SELECT SUM(vd.subtotal - (vd.costo_unitario * vd.cantidad)) FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id WHERE v.sesion_id = s.id), 0) as ganancia,
+        (SELECT vd.nombre FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id WHERE v.sesion_id = s.id GROUP BY vd.nombre ORDER BY SUM(vd.cantidad) DESC LIMIT 1) as top_producto
+        FROM sesiones_caja s
+        ORDER BY CASE WHEN s.estado = 'ABIERTA' THEN 0 ELSE 1 END, COALESCE(s.fecha_cierre, s.fecha_apertura) DESC, s.id DESC
     `).all(),
+    getSessionFullDetail: (sid) => {
+        const productos = exports.db.prepare(`
+            SELECT
+                vd.nombre,
+                COALESCE((SELECT c.nombre FROM productos p LEFT JOIN categorias c ON p.categoria_id = c.id WHERE LOWER(p.nombre) = LOWER(vd.nombre) LIMIT 1), 'Varios') as categoria,
+                COALESCE((SELECT es_por_kilo FROM productos p WHERE LOWER(p.nombre) = LOWER(vd.nombre) LIMIT 1), 0) as es_por_kilo,
+                SUM(vd.cantidad) as cantidad_total,
+                AVG(vd.precio) as precio_unitario,
+                SUM(vd.subtotal) as subtotal_total,
+                SUM(vd.costo_unitario * vd.cantidad) as costo_total,
+                SUM(vd.subtotal - (vd.costo_unitario * vd.cantidad)) as ganancia_total
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            WHERE v.sesion_id = ?
+            GROUP BY vd.nombre
+            ORDER BY subtotal_total DESC
+        `).all(sid);
+        const rawVentas = exports.db.prepare(`
+            SELECT v.*, c.nombre as cliente_nombre
+            FROM ventas v
+            LEFT JOIN clientes c ON v.cliente_id = c.id
+            WHERE v.sesion_id = ?
+            ORDER BY v.fecha DESC
+        `).all(sid);
+        const getDetalles = exports.db.prepare('SELECT * FROM venta_detalles WHERE venta_id = ?');
+        const ventas = rawVentas.map(v => ({
+            ...v,
+            detalles: getDetalles.all(v.id),
+        }));
+        const movimientos = exports.db.prepare(`
+            SELECT * FROM movimientos_caja WHERE sesion_id = ? ORDER BY fecha DESC
+        `).all(sid);
+        return { productos, ventas, movimientos };
+    },
     getReportMonthly: () => exports.db.prepare(`
         SELECT strftime('%Y-%m', fecha_cierre) as periodo, 
         SUM(monto_final_efectivo) as efectivo, SUM(monto_final_otros) as otros,
@@ -398,9 +444,23 @@ exports.dbService = {
                 (SELECT COUNT(*) FROM ventas WHERE date(fecha) >= ${from}) as total_ventas,
                 (SELECT COALESCE(SUM(total), 0) FROM ventas WHERE date(fecha) >= ${from}) as ingresos,
                 (SELECT COALESCE(AVG(total), 0) FROM ventas WHERE date(fecha) >= ${from}) as ticket_promedio,
+                (SELECT COALESCE(MAX(total), 0) FROM ventas WHERE date(fecha) >= ${from}) as ticket_maximo,
+                (SELECT COALESCE(AVG(cantidad_items), 0) FROM ventas WHERE date(fecha) >= ${from}) as items_promedio,
+                (SELECT COALESCE(SUM(vd.cantidad), 0)
+                 FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id
+                 WHERE date(v.fecha) >= ${from}) as unidades_totales,
+                (SELECT COALESCE(SUM(vd.costo_unitario * vd.cantidad), 0)
+                 FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id
+                 WHERE date(v.fecha) >= ${from}) as costo_mercaderia,
                 (SELECT COALESCE(SUM(vd.subtotal - vd.costo_unitario * vd.cantidad), 0)
                  FROM venta_detalles vd JOIN ventas v ON vd.venta_id = v.id
-                 WHERE date(v.fecha) >= ${from}) as ganancia
+                 WHERE date(v.fecha) >= ${from}) as ganancia,
+                (SELECT COALESCE(SUM(monto), 0) FROM movimientos_caja WHERE UPPER(tipo) = 'SALIDA' AND date(fecha) >= ${from}) as gastos_salidas,
+                (SELECT COALESCE(SUM(monto), 0) FROM movimientos_caja WHERE UPPER(tipo) = 'ENTRADA' AND date(fecha) >= ${from}) as ingresos_extra,
+                MAX(1, (SELECT COUNT(DISTINCT date(fecha)) FROM ventas WHERE date(fecha) >= ${from})) as dias_activos,
+                (SELECT COALESCE(SUM(saldo), 0) FROM clientes WHERE saldo > 0) as deuda_clientes_total,
+                (SELECT COALESCE(SUM(CASE WHEN es_por_kilo = 1 THEN precio_por_kilo * stock ELSE precio * stock END), 0) FROM productos WHERE stock > 0) as valor_inventario_venta,
+                (SELECT COALESCE(SUM(precio_costo * stock), 0) FROM productos WHERE stock > 0) as valor_inventario_costo
         `).get();
     },
     getTopProductos: (period) => {
@@ -410,14 +470,37 @@ exports.dbService = {
                 vd.nombre,
                 SUM(vd.cantidad) as cantidad_total,
                 SUM(vd.subtotal) as ingresos_total,
+                SUM(vd.costo_unitario * vd.cantidad) as costo_total,
                 SUM(vd.subtotal - vd.costo_unitario * vd.cantidad) as ganancia_total,
-                COALESCE((SELECT es_por_kilo FROM productos WHERE nombre = vd.nombre LIMIT 1), 0) as es_por_kilo
+                COUNT(DISTINCT vd.venta_id) as tickets_count,
+                COALESCE((SELECT es_por_kilo FROM productos WHERE LOWER(nombre) = LOWER(vd.nombre) LIMIT 1), 0) as es_por_kilo,
+                COALESCE((SELECT stock FROM productos WHERE LOWER(nombre) = LOWER(vd.nombre) LIMIT 1), 0) as stock_actual
             FROM venta_detalles vd
             JOIN ventas v ON vd.venta_id = v.id
             WHERE date(v.fecha) >= ${from}
             GROUP BY vd.nombre
             ORDER BY cantidad_total DESC
-            LIMIT 10
+            LIMIT 50
+        `).all();
+    },
+    getStatsPorDia: (period) => {
+        const from = getPeriodStart(period);
+        return exports.db.prepare(`
+            SELECT
+                date(v.fecha) as fecha,
+                CAST(strftime('%w', v.fecha) AS INTEGER) as dia_semana,
+                COUNT(DISTINCT v.id) as cantidad_ventas,
+                COALESCE(SUM(v.total), 0) as ingresos,
+                COALESCE((
+                    SELECT SUM(vd.subtotal - vd.costo_unitario * vd.cantidad)
+                    FROM venta_detalles vd
+                    JOIN ventas v2 ON vd.venta_id = v2.id
+                    WHERE date(v2.fecha) = date(v.fecha)
+                ), 0) as ganancia
+            FROM ventas v
+            WHERE date(v.fecha) >= ${from}
+            GROUP BY date(v.fecha)
+            ORDER BY fecha ASC
         `).all();
     },
     getMenosVendidos: (period) => {
@@ -486,12 +569,25 @@ exports.dbService = {
     },
     getProductosBajoStock: (umbral = 5) => {
         return exports.db.prepare(`
-            SELECT p.nombre, p.stock, p.precio, p.es_por_kilo, COALESCE(c.nombre, 'Varios') as categoria
+            SELECT
+                p.nombre,
+                p.stock,
+                p.precio,
+                p.precio_costo,
+                p.es_por_kilo,
+                COALESCE(c.nombre, 'Varios') as categoria,
+                COALESCE((
+                    SELECT SUM(vd.cantidad)
+                    FROM venta_detalles vd
+                    JOIN ventas v ON vd.venta_id = v.id
+                    WHERE LOWER(vd.nombre) = LOWER(p.nombre)
+                      AND date(v.fecha) >= date('now', '-3 hours', '-30 days')
+                ), 0) as vendidos_mes
             FROM productos p
             LEFT JOIN categorias c ON c.id = p.categoria_id
             WHERE p.stock <= ? AND p.stock >= 0
-            ORDER BY p.stock ASC
-            LIMIT 20
+            ORDER BY vendidos_mes DESC, p.stock ASC
+            LIMIT 25
         `).all(umbral);
     },
 };
