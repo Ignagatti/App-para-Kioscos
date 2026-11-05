@@ -19,6 +19,8 @@ interface VentasProps {
 
 export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
     const [cart, setCart] = useState<CartItem[]>([]);
+    const cartRef = useRef<CartItem[]>([]);
+    cartRef.current = cart;
     const [saleSearch, setSaleSearch] = useState('');
     const [clients, setClients] = useState<Client[]>([]);
     const [selectedClient, setSelectedClient] = useState<number | null>(null);
@@ -380,6 +382,31 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
         if (saleInputRef.current) saleInputRef.current.focus();
     };
 
+    // Avisa si la cantidad supera el stock, pero no bloquea (en un kiosco es común tener mercadería sin cargar).
+    // Solo pregunta al cruzar el stock: si ya estaba por encima, ya fue confirmado antes.
+    const faltaStock = (product: Product, cantidadActual: number, cantidadNueva: number): boolean => {
+        if (product.id <= 0) return false; // venta manual sin producto
+        const stock = product.stock || 0;
+        return cantidadNueva > stock && cantidadActual <= stock;
+    };
+
+    const confirmarStock = async (product: Product): Promise<boolean> => {
+        const quedan = parseFloat(Math.max(0, product.stock || 0).toFixed(3));
+        const { isConfirmed } = await MySwal.fire({
+            icon: 'warning',
+            title: 'Stock insuficiente',
+            text: `Stock insuficiente (quedan ${quedan}). ¿Vender igual?`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, vender igual',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#2d7a5f',
+            cancelButtonColor: '#3a3f3c',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)'
+        });
+        return !!isConfirmed;
+    };
+
     const processAddToCart = async (product: Product) => {
         if (product.es_por_kilo) {
             const { value: gramosStr } = await MySwal.fire({
@@ -402,6 +429,8 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                 const gramos = parseFloat(gramosStr);
                 if (gramos <= 0) return;
                 const kilos = gramos / 1000;
+                const enCarrito = cartRef.current.filter(i => i.id === product.id).reduce((acc, i) => acc + i.cantidad, 0);
+                if (faltaStock(product, enCarrito, enCarrito + kilos) && !(await confirmarStock(product))) return;
                 // El precio base para este item será el precio por kilo
                 const precio = product.precio_por_kilo || product.precio || 0;
                 const subtotal = kilos * precio;
@@ -416,6 +445,8 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
                 }]);
             }
         } else {
+            const enCarrito = cartRef.current.find(i => i.codigo_barras === product.codigo_barras && !i.es_por_kilo)?.cantidad || 0;
+            if (faltaStock(product, enCarrito, enCarrito + 1) && !(await confirmarStock(product))) return;
             setCart(prev => {
                 const existing = prev.find(item => item.codigo_barras === product.codigo_barras && !item.es_por_kilo);
                 if (existing) {
@@ -430,7 +461,11 @@ export default function Ventas({ session, quickPayKey = 'F12' }: VentasProps) {
         }
     };
 
-    const updateQuantity = (cartId: number, delta: number) => {
+    const updateQuantity = async (cartId: number, delta: number) => {
+        if (delta > 0) {
+            const item = cartRef.current.find(i => (i.cartId || i.id) === cartId);
+            if (item && !item.es_por_kilo && faltaStock(item, item.cantidad, item.cantidad + delta) && !(await confirmarStock(item))) return;
+        }
         setCart(prev => prev.map(item => {
             if ((item.cartId || item.id) === cartId) {
                 if (item.es_por_kilo) return item;

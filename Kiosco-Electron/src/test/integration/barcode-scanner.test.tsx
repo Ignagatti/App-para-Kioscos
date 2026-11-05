@@ -253,6 +253,28 @@ describe('Ventas – cart operations', () => {
         expect(screen.getByText('2')).toBeInTheDocument();
     });
 
+    it('asks for confirmation when exceeding stock and adds only if confirmed', async () => {
+        (window.api.db.searchProducts as any).mockResolvedValue([makeProduct({ stock: 1 })]);
+        render(<Ventas session={session} />);
+
+        await scanBarcode('7790001');
+        await waitFor(() => screen.getByText('Alfajor Rocklet'));
+        expect(mockFire).not.toHaveBeenCalled(); // 1 <= stock 1
+
+        // Cancelar: la cantidad no cambia
+        mockFire.mockResolvedValue({ isConfirmed: false });
+        fireEvent.click(screen.getByRole('button', { name: '+' }));
+        await waitFor(() => expect(mockFire).toHaveBeenCalledWith(
+            expect.objectContaining({ text: expect.stringContaining('quedan 1') })
+        ));
+        expect(screen.queryByText('2')).not.toBeInTheDocument();
+
+        // Confirmar: se agrega igual
+        mockFire.mockResolvedValue({ isConfirmed: true });
+        fireEvent.click(screen.getByRole('button', { name: '+' }));
+        await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument());
+    });
+
     it('clicking - button decrements quantity (stays ≥ 1)', async () => {
         (window.api.db.searchProducts as any).mockResolvedValue([makeProduct()]);
         render(<Ventas session={session} />);
