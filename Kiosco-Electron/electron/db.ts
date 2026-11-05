@@ -232,10 +232,15 @@ export const dbService = {
     // ── Caja ──
     getSessionStatus: () => db.prepare("SELECT * FROM sesiones_caja WHERE estado = 'ABIERTA' ORDER BY id DESC LIMIT 1").get(),
     openCaja: (monto: number) => {
-        // Cerrar cualquier sesión previa que haya quedado abierta por accidente
-        db.prepare("UPDATE sesiones_caja SET estado = 'CERRADA' WHERE estado = 'ABIERTA'").run();
-        const res = db.prepare("INSERT INTO sesiones_caja (monto_inicial, estado, fecha_apertura) VALUES (?, 'ABIERTA', datetime('now','-3 hours'))").run(monto);
-        return { id: Number(res.lastInsertRowid) };
+        const txn = db.transaction(() => {
+            const abierta = db.prepare("SELECT id FROM sesiones_caja WHERE estado = 'ABIERTA' LIMIT 1").get();
+            if (abierta) {
+                throw new Error('Ya hay una caja abierta. Cerrala antes de abrir una nueva.');
+            }
+            const res = db.prepare("INSERT INTO sesiones_caja (monto_inicial, estado, fecha_apertura) VALUES (?, 'ABIERTA', datetime('now','-3 hours'))").run(monto);
+            return { id: Number(res.lastInsertRowid) };
+        });
+        return txn();
     },
     closeCaja: (id: number, ef: number, ot: number) => {
         db.prepare("UPDATE sesiones_caja SET monto_final_efectivo=?, monto_final_otros=?, fecha_cierre=datetime('now','-3 hours'), estado='CERRADA' WHERE id=?").run(ef, ot, id);

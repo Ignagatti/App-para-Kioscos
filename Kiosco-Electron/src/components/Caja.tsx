@@ -11,8 +11,19 @@ interface CajaProps {
     onSessionChange: (session: SessionStatus | null) => void;
 }
 
+const TZ_AR = 'America/Argentina/Buenos_Aires';
+
+// fecha_apertura se guarda como 'YYYY-MM-DD HH:MM:SS' ya en hora Argentina;
+// si viene en otro formato (ISO/UTC) se convierte a la fecha Argentina.
+function diaArgentina(fecha: string): string {
+    if (/^\d{4}-\d{2}-\d{2} /.test(fecha)) return fecha.slice(0, 10);
+    return new Date(fecha).toLocaleDateString('en-CA', { timeZone: TZ_AR });
+}
+
 export default function Caja({ session, onSessionChange }: CajaProps) {
     const [montoInicial, setMontoInicial] = useState('');
+    const hoyAR = new Date().toLocaleDateString('en-CA', { timeZone: TZ_AR });
+    const cajaVieja = !!session && diaArgentina(session.fecha_apertura) < hoyAR;
 
     // Close Session State
     const [montoEfectivo, setMontoEfectivo] = useState('');
@@ -233,7 +244,13 @@ export default function Caja({ session, onSessionChange }: CajaProps) {
                         </form>
                     ) : (
                         <form onSubmit={handleClose} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            
+                            {cajaVieja && (
+                                <div role="alert" style={{ padding: '15px', backgroundColor: 'rgba(196, 77, 77, 0.12)', border: '1px solid var(--danger-light)', borderRadius: '8px', color: 'var(--danger-light)' }}>
+                                    <strong>Quedó una caja sin cerrar</strong><br/>
+                                    <span style={{ fontSize: '0.85rem' }}>Esta caja se abrió el día anterior o antes. Hacé el cierre primero para poder abrir una nueva.</span>
+                                </div>
+                            )}
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
                                 <div style={{ padding: '15px', backgroundColor: 'var(--bg-main)', border: '1.5px solid var(--success)', borderRadius: '12px', textAlign: 'center' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Efectivo</span>
