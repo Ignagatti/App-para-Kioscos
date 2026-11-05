@@ -48,7 +48,7 @@ export const mockElectronAPI: ElectronAPI = {
         
         getClients: async () => mockClients,
         addClient: async () => ({ id: 3 }),
-        payClientDebt: async () => {},
+        payClientDebt: async (_data: { clientId: number, amount: number, metodoPago: 'EFECTIVO' | 'OTROS' }) => {},
         addClientDebt: async () => {},
         getClientSales: async () => [],
         deleteClient: async () => {},

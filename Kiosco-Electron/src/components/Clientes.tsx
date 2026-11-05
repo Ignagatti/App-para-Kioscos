@@ -23,6 +23,7 @@ export default function Clientes({ session }: ClientesProps) {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
+    const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'OTROS'>('EFECTIVO');
 
     // Modal state for History
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -86,7 +87,8 @@ export default function Clientes({ session }: ClientesProps) {
 
     const handlePayment = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedClient || paymentAmount === '' || paymentAmount <= 0) {
+        const amount = Number(paymentAmount);
+        if (!selectedClient || paymentAmount === '' || !Number.isFinite(amount) || amount <= 0) {
             MySwal.fire('Atención', 'Ingresa un monto válido mayor a cero.', 'warning');
             return;
         }
@@ -95,19 +97,11 @@ export default function Clientes({ session }: ClientesProps) {
             return;
         }
         try {
-            await window.api.db.payClientDebt({ clientId: selectedClient.id, amount: Number(paymentAmount) });
-            if (session) {
-                await window.api.db.addMovimiento({
-                    tipo: 'ENTRADA',
-                    categoria: 'Cobro de Fiado',
-                    monto: Number(paymentAmount),
-                    descripcion: `Pago de deuda - ${selectedClient.nombre}`,
-                    sesionId: session.id,
-                    metodoPago: 'EFECTIVO'
-                });
-            }
+            // payClientDebt ya registra el movimiento de caja si hay sesión abierta
+            await window.api.db.payClientDebt({ clientId: selectedClient.id, amount, metodoPago: paymentMethod });
             setIsPaymentModalOpen(false);
             setPaymentAmount('');
+            setPaymentMethod('EFECTIVO');
             setSelectedClient(null);
             loadData();
             MySwal.fire({
@@ -295,6 +289,13 @@ export default function Clientes({ session }: ClientesProps) {
                             <div>
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Monto a pagar ($) *</label>
                                 <input type="number" step="0.01" min="0.01" max={selectedClient.saldo || 0} required value={paymentAmount} onChange={e => setPaymentAmount(e.target.value ? Number(e.target.value) : '')} style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Método de pago</label>
+                                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as 'EFECTIVO' | 'OTROS')} style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', boxSizing: 'border-box' }}>
+                                    <option value="EFECTIVO">Efectivo</option>
+                                    <option value="OTROS">Otros (transferencia, tarjeta)</option>
+                                </select>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                                 <button type="button" className="btn" onClick={() => setIsPaymentModalOpen(false)} style={{ backgroundColor: 'transparent', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>Cancelar</button>

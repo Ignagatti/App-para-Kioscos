@@ -113,7 +113,31 @@ describe('Clientes component', () => {
         expect(screen.queryByText('Beto Ruiz')).not.toBeInTheDocument();
     });
 
-    it('calls addMovimiento when session is open after a client payment', async () => {
+    it('passes the selected metodoPago (default EFECTIVO, OTROS when chosen) to payClientDebt', async () => {
+        const client = { id: 1, nombre: 'Laura', telefono: '', saldo: 300 };
+        (window.api.db.getClients as any).mockResolvedValue([client]);
+        mockFire.mockResolvedValue({ isConfirmed: true });
+
+        render(<Clientes session={mockSession} />);
+        await waitFor(() => screen.getByText('Laura'));
+
+        fireEvent.click(screen.getByTitle('Registrar Pago'));
+        await waitFor(() => screen.getByRole('heading', { name: 'Registrar Pago' }));
+
+        const select = screen.getByRole('combobox') as HTMLSelectElement;
+        expect(select.value).toBe('EFECTIVO');
+        fireEvent.change(select, { target: { value: 'OTROS' } });
+
+        const input = screen.getByRole('spinbutton');
+        fireEvent.change(input, { target: { value: '100' } });
+        fireEvent.submit(input.closest('form')!);
+
+        await waitFor(() => {
+            expect(window.api.db.payClientDebt).toHaveBeenCalledWith({ clientId: 1, amount: 100, metodoPago: 'OTROS' });
+        });
+    });
+
+    it('does NOT call addMovimiento separately (payClientDebt already records it)', async () => {
         const client = { id: 1, nombre: 'Laura', telefono: '', saldo: 300 };
         (window.api.db.getClients as any).mockResolvedValue([client]);
         mockFire.mockResolvedValue({ isConfirmed: true });
@@ -130,18 +154,10 @@ describe('Clientes component', () => {
 
         await waitFor(() => {
             expect(window.api.db.payClientDebt).toHaveBeenCalledWith(
-                expect.objectContaining({ clientId: 1, amount: 300 })
-            );
-            expect(window.api.db.addMovimiento).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    tipo: 'ENTRADA',
-                    categoria: 'Cobro de Fiado',
-                    monto: 300,
-                    sesionId: mockSession.id,
-                    metodoPago: 'EFECTIVO',
-                })
+                expect.objectContaining({ clientId: 1, amount: 300, metodoPago: 'EFECTIVO' })
             );
         });
+        expect(window.api.db.addMovimiento).not.toHaveBeenCalled();
     });
 
     it('does NOT call addMovimiento when session is null (caja cerrada)', async () => {

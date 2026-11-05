@@ -217,7 +217,7 @@ export interface ElectronAPI {
         
         getClients: () => Promise<Client[]>;
         addClient: (data: { nombre: string, telefono: string, saldo?: number }) => Promise<{ id: number }>;
-        payClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
+        payClientDebt: (data: { clientId: number, amount: number, metodoPago: 'EFECTIVO' | 'OTROS' }) => Promise<void>;
         addClientDebt: (data: { clientId: number, amount: number }) => Promise<void>;
         getClientSales: (clientId: number) => Promise<Sale[]>;
         deleteClient: (id: number) => Promise<void>;
